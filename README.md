@@ -66,7 +66,7 @@ One repository on purpose: the spec and every implementation move together, and 
 
 | Language | Status |
 | --- | --- |
-| Spec v1 | Draft — authentication still open before freeze |
+| Spec v1 | Draft — client side complete; receiver must enforce tokens before freeze |
 | Client model | Draft — handles, aggregates, disposal |
 | Conformance suite | Draft — 11 cases |
 | [PowerShell](powershell/) | **Alpha** — passes conformance on 5.1 and 7 |

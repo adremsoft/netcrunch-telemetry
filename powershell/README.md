@@ -130,14 +130,24 @@ Set-NCTimestamp -Object 'Sync' -Counter 'Last Success Age s' -StatusKey 'Last Sy
 
 Age is computed when the payload is built, not when you call it.
 
-## Keep the endpoint secret
+## Authentication
 
-The endpoint URL currently carries the sensor identity and is effectively the credential — see
-[`spec/v1.md`](../spec/v1.md) §1, where this is flagged as unresolved before v1 can be frozen.
+Pass the sensor's token alongside the endpoint; it goes out as `Authorization: Bearer`:
 
-The module never writes the URL to logs, verbose output or error messages; failures are re-raised
-with the status code only. Pass it from an environment variable or a credential store rather than
-hard-coding it, and be aware that PowerShell transcription will capture it if you type it inline.
+```powershell
+Connect-NCTelemetry -Endpoint $env:NC_TELEMETRY_URL -Token $env:NC_TELEMETRY_TOKEN
+```
+
+**The NetCrunch receiver does not verify the token yet.** Today the endpoint URL is itself the whole
+credential: anyone who can reach the web server and knows the sensor name and node id can write to
+that sensor. Sending a token now costs nothing and makes the script forward-compatible with the
+receiver that enforces it. Until then treat **both** URL and token as secrets. See
+[`spec/v1.md`](../spec/v1.md) §1.1.
+
+The module never writes either to logs, verbose output or error messages; failures are re-raised with
+the status code only. Pass them from environment variables or a credential store rather than
+hard-coding them, and be aware that **PowerShell transcription captures whatever you type inline** —
+which is a stronger reason to use the environment here than in the other languages.
 
 ## Tests
 
@@ -170,5 +180,7 @@ Run the conformance suite under both editions before committing. PowerShell 7 wi
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   has to be computed and sent as its own counter. Fine for single-shot scripts; a long-running loop
   currently does that arithmetic itself.
-- **No authentication beyond the endpoint URL.** Blocked on the spec.
+- **The receiver does not enforce the token yet.** The client half is settled
+  ([`spec/v1.md`](../spec/v1.md) §1.1); NetCrunch must issue tokens and verify the header before v1
+  can be frozen. No script change is expected when that lands.
 - **Not published to the PowerShell Gallery** while the module is alpha.

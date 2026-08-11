@@ -31,9 +31,18 @@ func newTest(t *testing.T, options Options) *Telemetry {
 // server returns a test server whose URL embeds a recognisable secret, so a leak
 // into an error message is visible.
 func server(t *testing.T, handler func(w http.ResponseWriter, count int)) (*httptest.Server, *[]map[string]any) {
+	srv, received, _ := serverWithHeaders(t, handler)
+	return srv, received
+}
+
+func serverWithHeaders(
+	t *testing.T,
+	handler func(w http.ResponseWriter, count int),
+) (*httptest.Server, *[]map[string]any, *[]http.Header) {
 	t.Helper()
 	var mu sync.Mutex
 	received := []map[string]any{}
+	headers := []http.Header{}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -42,13 +51,14 @@ func server(t *testing.T, handler func(w http.ResponseWriter, count int)) (*http
 
 		mu.Lock()
 		received = append(received, parsed)
+		headers = append(headers, r.Header.Clone())
 		count := len(received)
 		mu.Unlock()
 
 		handler(w, count)
 	}))
 	t.Cleanup(srv.Close)
-	return srv, &received
+	return srv, &received, &headers
 }
 
 func secretURL(srv *httptest.Server) string {
@@ -245,6 +255,34 @@ func TestFlushClearsEventsButKeepsCountersAndStatuses(t *testing.T) {
 	}
 	if _, present := (*received)[1]["counters"]; !present {
 		t.Error("counters must keep being reported")
+	}
+}
+
+func TestTokenIsSentAsBearer(t *testing.T) {
+	srv, _, headers := serverWithHeaders(t, func(w http.ResponseWriter, _ int) { w.WriteHeader(http.StatusOK) })
+
+	stats := newTest(t, Options{Endpoint: srv.URL, Token: "TOKENSECRET"})
+	_ = stats.Status("Job", "OK")
+	if err := stats.Flush(context.Background()); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	if got := (*headers)[0].Get("Authorization"); got != "Bearer TOKENSECRET" {
+		t.Errorf("Authorization = %q, want %q", got, "Bearer TOKENSECRET")
+	}
+}
+
+func TestNoTokenMeansNoAuthorizationHeader(t *testing.T) {
+	srv, _, headers := serverWithHeaders(t, func(w http.ResponseWriter, _ int) { w.WriteHeader(http.StatusOK) })
+
+	stats := newTest(t, Options{Endpoint: srv.URL})
+	_ = stats.Status("Job", "OK")
+	if err := stats.Flush(context.Background()); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	if got := (*headers)[0].Get("Authorization"); got != "" {
+		t.Errorf("Authorization = %q, want it absent", got)
 	}
 }
 

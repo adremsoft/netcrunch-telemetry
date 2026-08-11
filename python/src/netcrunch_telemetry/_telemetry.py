@@ -55,6 +55,7 @@ class Telemetry:
         self,
         endpoint: str,
         *,
+        token: Optional[str] = None,
         flush_seconds: float = 0,
         retain_minutes: int = 5,
         remove_minutes: int = 1440,
@@ -66,6 +67,9 @@ class Telemetry:
         """
         :param endpoint: URL from the Telemetry sensor form. Treat it as a secret;
             this library never writes it to an exception or a log.
+        :param token: Bearer token from the Telemetry sensor, sent as an
+            ``Authorization`` header. Optional only because the receiver does not
+            yet require one; see spec/v1.md section 1.1.
         :param flush_seconds: Starts a background flush thread when above zero.
             Zero — the default — flushes only when asked.
         :param retain_minutes: Must exceed the flush interval, or values expire
@@ -88,7 +92,11 @@ class Telemetry:
                 "or values expire between sends."
             )
 
+        if token is not None and (not isinstance(token, str) or token == ""):
+            raise ValueError("token must be a non-empty string when provided.")
+
         self.endpoint = endpoint
+        self.token = token
         self.retain_minutes = retain_minutes
         self.remove_minutes = remove_minutes
         self.flush_seconds = flush_seconds
@@ -418,6 +426,7 @@ class Telemetry:
                 body,
                 timeout_seconds=self.timeout_seconds,
                 max_retries=self.max_retries,
+                token=self.token,
             )
 
             # Trimmed rather than emptied: events staged while the request was in

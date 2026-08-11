@@ -79,6 +79,9 @@ func (t *Telemetry) postOnce(ctx context.Context, body []byte) error {
 		return &Error{message: "netcrunch telemetry request could not be built"}
 	}
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
+	if t.token != "" {
+		request.Header.Set("Authorization", "Bearer "+t.token)
+	}
 
 	response, err := t.client.Do(request)
 	if err != nil {

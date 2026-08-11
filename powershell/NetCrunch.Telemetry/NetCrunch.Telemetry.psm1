@@ -145,6 +145,11 @@ function Connect-NCTelemetry {
         Full URL shown on the Telemetry sensor form. Treat it as a secret — it is
         not written to logs or error messages by this module.
 
+    .PARAMETER Token
+        Bearer token from the Telemetry sensor, sent as an Authorization header.
+        Optional only because the receiver does not yet require one; see
+        spec/v1.md section 1.1.
+
     .EXAMPLE
         Connect-NCTelemetry -Endpoint $env:NC_TELEMETRY_URL -RetainMinutes 90
     #>
@@ -153,6 +158,9 @@ function Connect-NCTelemetry {
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$Endpoint,
+
+        [ValidateNotNullOrEmpty()]
+        [string]$Token,
 
         [ValidateRange(1, 1440)]
         [int]$RetainMinutes = 5,
@@ -178,6 +186,7 @@ function Connect-NCTelemetry {
 
     $script:State = @{
         Endpoint       = $Endpoint
+        Token          = $Token
         RetainMinutes  = $RetainMinutes
         RemoveMinutes  = $RemoveMinutes
         TimeoutSeconds = $TimeoutSeconds
@@ -676,6 +685,11 @@ function Send-NCTelemetry {
 
     Enable-NCTls12
 
+    $headers = @{}
+    if (-not [string]::IsNullOrEmpty($script:State.Token)) {
+        $headers['Authorization'] = "Bearer $($script:State.Token)"
+    }
+
     $attempt  = 0
     $lastError = $null
 
@@ -685,6 +699,7 @@ function Send-NCTelemetry {
             $null = Invoke-RestMethod -Uri $script:State.Endpoint `
                                       -Method Post `
                                       -Body $body `
+                                      -Headers $headers `
                                       -ContentType 'application/json; charset=utf-8' `
                                       -TimeoutSec $script:State.TimeoutSeconds `
                                       -ErrorAction Stop

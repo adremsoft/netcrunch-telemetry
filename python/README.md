@@ -139,10 +139,22 @@ a counter value: `bool` subclasses `int`, and a flag silently becoming 1 is neve
 `from None` — a chained cause would print the credential whenever the traceback is formatted. A test
 asserts both the message and `__context__`.
 
-## Keep the endpoint secret
+## Authentication
 
-The endpoint URL currently carries the sensor identity and is effectively the credential — see
-[`spec/v1.md`](../spec/v1.md) §1, where this is flagged as unresolved before v1 can be frozen.
+Pass the sensor's token alongside the endpoint; it goes out as `Authorization: Bearer`:
+
+```python
+stats = Telemetry(
+    os.environ["NC_TELEMETRY_URL"],
+    token=os.environ.get("NC_TELEMETRY_TOKEN"),
+)
+```
+
+**The NetCrunch receiver does not verify the token yet.** Today the endpoint URL is itself the whole
+credential: anyone who can reach the web server and knows the sensor name and node id can write to
+that sensor. Sending a token now costs nothing and makes the client forward-compatible with the
+receiver that enforces it. Until then treat **both** URL and token as secrets — neither reaches a log
+or an exception from this library. See [`spec/v1.md`](../spec/v1.md) §1.1.
 
 ## Tests
 
@@ -166,5 +178,7 @@ to pass; Python's do not, so every check has to exist and every rejection case a
   gap of the five implementations.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
-- **No authentication beyond the endpoint URL.** Blocked on the spec.
+- **The receiver does not enforce the token yet.** The client half is settled
+  ([`spec/v1.md`](../spec/v1.md) §1.1); NetCrunch must issue tokens and verify the header before v1
+  can be frozen. No client change is expected when that lands.
 - **Not published to PyPI** while the package is alpha.

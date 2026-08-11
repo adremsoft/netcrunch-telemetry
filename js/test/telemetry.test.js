@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import test from "node:test";
+import util from "node:util";
 
 import { Telemetry, TelemetryError } from "../src/index.js";
 
@@ -13,19 +14,23 @@ const connect = (options = {}) =>
 function startServer(handler) {
   return new Promise((resolve) => {
     const requests = [];
+    const headers = [];
     const server = http.createServer((req, res) => {
       const chunks = [];
       req.on("data", (chunk) => chunks.push(chunk));
       req.on("end", () => {
+        headers.push(req.headers);
         requests.push(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"));
         handler(res, requests.length);
       });
     });
+    server.headers = headers;
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address();
       resolve({
         server,
         requests,
+        headers,
         url: `http://127.0.0.1:${port}/api/rest/1/sensors/SENSORSECRET@1/update`,
         close: () => new Promise((done) => server.close(done)),
       });
@@ -177,6 +182,38 @@ test("a successful flush clears events but keeps counters and statuses", async (
   assert.equal(target.requests[1].events, undefined);
   assert.equal(target.requests[1].counters[0].value, 7);
   assert.deepStrictEqual(target.requests[1].statuses, { Job: { value: "OK" } });
+});
+
+test("a configured token is sent as a bearer header and never logged", async (t) => {
+  const target = await startServer((res) => res.writeHead(200).end("{}"));
+  t.after(target.close);
+
+  const stats = connect({ endpoint: target.url, token: "TOKENSECRET" });
+  stats.status("Job", "OK");
+  await stats.flush();
+
+  assert.equal(target.headers[0].authorization, "Bearer TOKENSECRET");
+
+  // A bare console.log of the instance is exactly how a credential reaches a log.
+  assert.doesNotMatch(JSON.stringify(stats), /TOKENSECRET/);
+  assert.doesNotMatch(util.inspect(stats), /TOKENSECRET/);
+  assert.equal(stats.token, "TOKENSECRET", "still readable by the owner");
+});
+
+test("no token means no authorization header", async (t) => {
+  const target = await startServer((res) => res.writeHead(200).end("{}"));
+  t.after(target.close);
+
+  const stats = connect({ endpoint: target.url });
+  stats.status("Job", "OK");
+  await stats.flush();
+
+  assert.equal(target.headers[0].authorization, undefined);
+});
+
+test("an empty token is rejected rather than silently unauthenticated", () => {
+  assert.throws(() => connect({ token: "" }), /non-empty string/);
+  assert.throws(() => connect({ token: 12345 }), /non-empty string/);
 });
 
 test("errors never carry the endpoint", async (t) => {

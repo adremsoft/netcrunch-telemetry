@@ -43,13 +43,14 @@ def post(
     *,
     timeout_seconds: float,
     max_retries: int,
+    token: Optional[str] = None,
     sleep=time.sleep,
 ) -> None:
     """Posts one payload, retrying transport failures and 5xx responses."""
     last: Optional[TelemetryError] = None
 
     for attempt in range(1, max_retries + 2):
-        failure = _post_once(endpoint, body, timeout_seconds)
+        failure = _post_once(endpoint, body, timeout_seconds, token)
         if failure is None:
             return
 
@@ -65,13 +66,17 @@ def post(
     raise last
 
 
-def _post_once(endpoint: str, body: bytes, timeout_seconds: float) -> Optional[TelemetryError]:
-    request = urllib.request.Request(
-        endpoint,
-        data=body,
-        method="POST",
-        headers={"Content-Type": "application/json; charset=utf-8"},
-    )
+def _post_once(
+    endpoint: str,
+    body: bytes,
+    timeout_seconds: float,
+    token: Optional[str] = None,
+) -> Optional[TelemetryError]:
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = urllib.request.Request(endpoint, data=body, method="POST", headers=headers)
 
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:

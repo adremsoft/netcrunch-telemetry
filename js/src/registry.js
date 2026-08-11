@@ -54,6 +54,7 @@ export class Telemetry {
   constructor(options = {}) {
     const {
       endpoint,
+      token,
       flushSeconds = 0,
       retainMinutes = 5,
       removeMinutes = 1440,
@@ -84,7 +85,14 @@ export class Telemetry {
       );
     }
 
+    if (token !== undefined && (typeof token !== "string" || token === "")) {
+      throw new TypeError("token must be a non-empty string when provided.");
+    }
+
     this.endpoint = endpoint;
+    // Not enumerable: a bare console.log(stats) is exactly how a credential ends
+    // up in a log, and there is no reason for the token to appear there.
+    Object.defineProperty(this, "token", { value: token, enumerable: false, writable: false });
     this.retainMinutes = retainMinutes;
     this.removeMinutes = removeMinutes;
     this.flushSeconds = flushSeconds;
@@ -307,6 +315,7 @@ export class Telemetry {
           timeoutMs: this.timeoutMs,
           maxRetries: this.maxRetries,
           signal,
+          token: this.token,
         });
         // Splice rather than clear: events staged while this was in flight have
         // not been sent, and dropping them would lose them silently.

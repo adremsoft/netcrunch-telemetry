@@ -28,6 +28,11 @@ type Options struct {
 	// it is never written to an error or a log by this package.
 	Endpoint string
 
+	// Token is the bearer token from the Telemetry sensor, sent as an
+	// Authorization header. Optional only because the receiver does not yet
+	// require one; see spec/v1.md section 1.1.
+	Token string
+
 	// FlushInterval starts a background flush loop when greater than zero.
 	// Close stops it. Zero means flush only when asked.
 	FlushInterval time.Duration
@@ -98,6 +103,7 @@ type payload struct {
 // It is safe for concurrent use.
 type Telemetry struct {
 	endpoint   string
+	token      string
 	retain     time.Duration
 	remove     time.Duration
 	timeout    time.Duration
@@ -161,6 +167,7 @@ func New(options Options) (*Telemetry, error) {
 
 	t := &Telemetry{
 		endpoint:    options.Endpoint,
+		token:       options.Token,
 		retain:      retain,
 		remove:      remove,
 		timeout:     timeout,

@@ -129,10 +129,22 @@ endpoint**. `net/http` puts the request URL into the errors it returns, so failu
 rather than wrapped — a wrapped cause would put the credential into every log that prints it. There
 is a test asserting it.
 
-## Keep the endpoint secret
+## Authentication
 
-The endpoint URL currently carries the sensor identity and is effectively the credential — see
-[`spec/v1.md`](../spec/v1.md) §1, where this is flagged as unresolved before v1 can be frozen.
+Pass the sensor's token alongside the endpoint; it goes out as `Authorization: Bearer`:
+
+```go
+stats, err := telemetry.New(telemetry.Options{
+    Endpoint: os.Getenv("NC_TELEMETRY_URL"),
+    Token:    os.Getenv("NC_TELEMETRY_TOKEN"),
+})
+```
+
+**The NetCrunch receiver does not verify the token yet.** Today the endpoint URL is itself the whole
+credential: anyone who can reach the web server and knows the sensor name and node id can write to
+that sensor. Sending a token now costs nothing and makes the client forward-compatible with the
+receiver that enforces it. Until then treat **both** URL and token as secrets — neither reaches a log
+or an error from this package. See [`spec/v1.md`](../spec/v1.md) §1.1.
 
 ## Tests
 
@@ -155,5 +167,7 @@ so there is nothing to reject. Skipping says that; passing would claim a check t
   Each still sends absolute state, so the result is correct either way.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
-- **No authentication beyond the endpoint URL.** Blocked on the spec.
+- **The receiver does not enforce the token yet.** The client half is settled
+  ([`spec/v1.md`](../spec/v1.md) §1.1); NetCrunch must issue tokens and verify the header before v1
+  can be frozen. No client change is expected when that lands.
 - **Not tagged for release** while the package is alpha; the module path carries no version suffix yet.

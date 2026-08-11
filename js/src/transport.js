@@ -59,8 +59,11 @@ async function discardBody(response) {
  * @param {{timeoutMs?: number, maxRetries?: number, signal?: AbortSignal}} [options]
  */
 export async function postPayload(endpoint, payload, options = {}) {
-  const { timeoutMs = 30_000, maxRetries = 3, signal } = options;
+  const { timeoutMs = 30_000, maxRetries = 3, signal, token } = options;
   const body = JSON.stringify(payload);
+
+  const headers = { "content-type": "application/json; charset=utf-8" };
+  if (token) headers.authorization = `Bearer ${token}`;
 
   let attempt = 0;
   let lastFailure = null;
@@ -75,12 +78,7 @@ export async function postPayload(endpoint, payload, options = {}) {
       : timeoutController.signal;
 
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json; charset=utf-8" },
-        body,
-        signal: abort,
-      });
+      const response = await fetch(endpoint, { method: "POST", headers, body, signal: abort });
       await discardBody(response);
 
       if (response.ok) return;

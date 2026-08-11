@@ -7,6 +7,8 @@
 export interface TelemetryOptions {
   /** URL from the Telemetry sensor form. Treat it as a secret — it is never logged. */
   endpoint: string;
+  /** Bearer token from the Telemetry sensor, sent as `Authorization: Bearer`. Never logged. */
+  token?: string;
   /** Auto-flush interval in seconds. 0 (the default) flushes only when asked. */
   flushSeconds?: number;
   /** Must exceed the flush interval, or values expire between sends. Default 5. */
@@ -162,6 +164,8 @@ export declare class Telemetry {
   constructor(options: TelemetryOptions);
 
   readonly endpoint: string;
+  /** Non-enumerable, so it does not surface in a console.log of the instance. */
+  readonly token?: string;
   readonly retainMinutes: number;
   readonly removeMinutes: number;
   readonly flushSeconds: number;

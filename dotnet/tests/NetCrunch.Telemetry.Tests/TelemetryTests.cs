@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Xunit;
 
@@ -16,6 +17,18 @@ public sealed class TelemetryTests
     {
         private readonly object _gate = new();
         private readonly List<string> _bodies = [];
+        private readonly List<AuthenticationHeaderValue?> _authorizations = [];
+
+        public IReadOnlyList<AuthenticationHeaderValue?> Authorizations
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _authorizations];
+                }
+            }
+        }
 
         public IReadOnlyList<string> Bodies
         {
@@ -37,6 +50,7 @@ public sealed class TelemetryTests
             lock (_gate)
             {
                 _bodies.Add(body);
+                _authorizations.Add(request.Headers.Authorization);
                 count = _bodies.Count;
             }
 
@@ -47,12 +61,14 @@ public sealed class TelemetryTests
     private static (Telemetry Stats, StubHandler Handler) Connect(
         Func<int, HttpResponseMessage> respond,
         string endpoint = Endpoint,
-        int maxRetries = 3)
+        int maxRetries = 3,
+        string? token = null)
     {
         var handler = new StubHandler(respond);
         var stats = new Telemetry(new TelemetryOptions
         {
             Endpoint = endpoint,
+            Token = token,
             MaxRetries = maxRetries,
             HttpClient = new HttpClient(handler),
         });
@@ -231,6 +247,35 @@ public sealed class TelemetryTests
         Assert.False(second.TryGetProperty("events", out _));
         Assert.True(second.TryGetProperty("counters", out _));
         Assert.True(second.TryGetProperty("statuses", out _));
+    }
+
+    [Fact]
+    public async Task TokenIsSentAsBearer()
+    {
+        var (stats, handler) = Connect(_ => Status(HttpStatusCode.OK), token: "TOKENSECRET");
+        using (stats)
+        {
+            stats.Status("Job", "OK");
+            await stats.FlushAsync();
+        }
+
+        var authorization = Assert.Single(handler.Authorizations);
+        Assert.NotNull(authorization);
+        Assert.Equal("Bearer", authorization.Scheme);
+        Assert.Equal("TOKENSECRET", authorization.Parameter);
+    }
+
+    [Fact]
+    public async Task NoTokenMeansNoAuthorizationHeader()
+    {
+        var (stats, handler) = Connect(_ => Status(HttpStatusCode.OK));
+        using (stats)
+        {
+            stats.Status("Job", "OK");
+            await stats.FlushAsync();
+        }
+
+        Assert.Null(Assert.Single(handler.Authorizations));
     }
 
     [Fact]

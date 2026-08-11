@@ -10,6 +10,12 @@ public sealed class TelemetryOptions
     public required string Endpoint { get; init; }
 
     /// <summary>
+    /// The bearer token from the Telemetry sensor, sent as an <c>Authorization</c> header. Optional
+    /// only because the receiver does not yet require one; see spec/v1.md section 1.1. Never logged.
+    /// </summary>
+    public string? Token { get; init; }
+
+    /// <summary>
     /// Starts a background flush loop when greater than zero. Disposal stops it. <see cref="TimeSpan.Zero"/>
     /// — the default — flushes only when asked.
     /// </summary>

@@ -25,6 +25,7 @@ class _Handler(BaseHTTPRequestHandler):
         server: Any = self.server
         with server.gate:
             server.received.append(json.loads(body or b"{}"))
+            server.authorizations.append(self.headers.get("Authorization"))
             count = len(server.received)
         self.send_response(server.respond(count))
         self.end_headers()
@@ -41,6 +42,7 @@ class _Server:
         self._httpd: Any = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
         self._httpd.respond = respond
         self._httpd.received: List[Dict[str, Any]] = []
+        self._httpd.authorizations: List[Any] = []
         self._httpd.gate = threading.Lock()
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
@@ -54,6 +56,11 @@ class _Server:
     def received(self) -> List[Dict[str, Any]]:
         with self._httpd.gate:
             return list(self._httpd.received)
+
+    @property
+    def authorizations(self) -> List[Any]:
+        with self._httpd.gate:
+            return list(self._httpd.authorizations)
 
     def close(self) -> None:
         self._httpd.shutdown()
@@ -233,6 +240,28 @@ class SendingTests(ServerTestCase):
         self.assertNotIn("events", received[1])
         self.assertEqual(7, received[1]["counters"][0]["value"])
         self.assertEqual({"Job": {"value": "OK"}}, received[1]["statuses"])
+
+    def test_token_is_sent_as_bearer(self) -> None:
+        server = self.serve(lambda _: 200)
+        stats = Telemetry(server.url, token="TOKENSECRET", detect_leaks=False)
+        stats.status("Job", "OK")
+        stats.flush()
+
+        self.assertEqual(["Bearer TOKENSECRET"], server.authorizations)
+
+    def test_no_token_means_no_authorization_header(self) -> None:
+        server = self.serve(lambda _: 200)
+        stats = Telemetry(server.url, detect_leaks=False)
+        stats.status("Job", "OK")
+        stats.flush()
+
+        self.assertEqual([None], server.authorizations)
+
+    def test_empty_token_is_rejected(self) -> None:
+        # Rather than silently sending nothing and looking authenticated.
+        for bad in ("", 12345):
+            with self.subTest(token=bad), self.assertRaises(ValueError):
+                Telemetry(ENDPOINT, token=bad)
 
     def test_errors_never_carry_the_endpoint(self) -> None:
         server = self.serve(lambda _: 401)

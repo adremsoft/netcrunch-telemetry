@@ -167,14 +167,29 @@ The wire format has no timestamp type, and a raw clock value means nothing outsi
 produced it. `timestamp()` emits two things: an age in seconds you can set a threshold on, and a
 status message carrying the absolute time for a person to read. Age is computed at flush time.
 
-## Keep the endpoint secret
+## Authentication
 
-The endpoint URL currently carries the sensor identity and is effectively the credential — see
-[`spec/v1.md`](../spec/v1.md) §1, where this is flagged as unresolved before v1 can be frozen.
+Pass the sensor's token alongside the endpoint; it goes out as `Authorization: Bearer`:
+
+```js
+const stats = new Telemetry({
+  endpoint: process.env.NC_TELEMETRY_URL,
+  token: process.env.NC_TELEMETRY_TOKEN,
+});
+```
+
+`token` is stored non-enumerable, so a `console.log(stats)` or `JSON.stringify(stats)` — which is
+exactly how credentials reach logs — does not print it. `stats.token` still reads normally.
+
+**The NetCrunch receiver does not verify the token yet.** Today the endpoint URL is itself the whole
+credential: anyone who can reach the web server and knows the sensor name and node id can write to
+that sensor. Sending a token now costs nothing and makes the client forward-compatible with the
+receiver that enforces it. Until then treat **both** URL and token as secrets.
 
 `fetch` puts the request URL into the errors it raises, so this library never wraps them. Failures
-are rebuilt as `TelemetryError` carrying only a status code, and there is a test asserting the
-endpoint appears in neither the message nor the stack.
+are rebuilt as `TelemetryError` carrying only a status code, and a test asserts the endpoint appears
+in neither the message nor the stack. See [`spec/v1.md`](../spec/v1.md) §1.1 for why wrapping is the
+trap.
 
 ## Tests
 
@@ -197,5 +212,7 @@ suite still has to run on Node 20.
   `metadata` is discarded server-side. Pair a peak counter with a status message for now.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
-- **No authentication beyond the endpoint URL.** Blocked on the spec.
+- **The receiver does not enforce the token yet.** The client half is settled
+  ([`spec/v1.md`](../spec/v1.md) §1.1); NetCrunch must issue tokens and verify the header before v1
+  can be frozen. No client change is expected when that lands.
 - **Not published to npm** while the package is alpha.

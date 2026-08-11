@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -478,8 +479,14 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
         try
         {
             using var content = new StringContent(body, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, _options.Endpoint) { Content = content };
+            if (!string.IsNullOrEmpty(_options.Token))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.Token);
+            }
+
             using var response = await _client
-                .PostAsync(_options.Endpoint, content, timeout.Token)
+                .SendAsync(request, timeout.Token)
                 .ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
