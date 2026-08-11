@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>NetCrunch.Telemetry</RootNamespace>
+    <AssemblyName>NetCrunch.Telemetry</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NetCrunch.Telemetry</PackageId>
+    <Version>0.1.0-alpha.1</Version>
+    <Authors>AdRem Software</Authors>
+    <Company>AdRem Software sp. z o.o.</Company>
+    <Description>Push metrics, states and events from a .NET application into NetCrunch.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/adremsoft/netcrunch-telemetry</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/adremsoft/netcrunch-telemetry</RepositoryUrl>
+    <PackageTags>netcrunch;monitoring;telemetry;metrics;observability</PackageTags>
+  </PropertyGroup>
+
+</Project>
