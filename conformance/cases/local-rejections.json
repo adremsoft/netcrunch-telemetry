@@ -1,0 +1,41 @@
+{
+  "name": "local-rejections",
+  "description": "Inputs the receiver discards silently. A library that forwards these loses data with no error raised anywhere, so each must fail at the call site instead. Rejection means the library signals an error in whatever way is idiomatic — it does not mean dropping quietly, which is the behaviour being guarded against.",
+  "rejects": [
+    {
+      "kind": "status",
+      "input": { "key": "Importer", "value": "" },
+      "reason": "Empty status value is filtered out by the receiver without error."
+    },
+    {
+      "kind": "status",
+      "input": { "key": "Importer", "value": 503 },
+      "reason": "Non-string status value is filtered out by the receiver without error."
+    },
+    {
+      "kind": "status",
+      "input": { "key": "@monitor", "value": "OK" },
+      "reason": "Keys beginning with @ are reserved by the receiver."
+    },
+    {
+      "kind": "event",
+      "input": { "severity": "error" },
+      "reason": "Event without a non-empty message or body is discarded by the receiver."
+    },
+    {
+      "kind": "event",
+      "input": { "message": "" },
+      "reason": "Empty event message is discarded by the receiver."
+    },
+    {
+      "kind": "counter",
+      "input": { "counter": "Depth", "value": 5 },
+      "reason": "path.object is required."
+    },
+    {
+      "kind": "counter",
+      "input": { "object": "Queue", "counter": "Depth", "value": "5" },
+      "reason": "Counter value must be a number, not a string."
+    }
+  ]
+}

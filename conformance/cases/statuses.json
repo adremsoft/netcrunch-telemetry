@@ -1,0 +1,30 @@
+{
+  "name": "statuses",
+  "description": "Statuses are emitted as objects. A status with only a value still gets the object form — the string shorthand is accepted by the receiver but not emitted, so one shape covers every case. Optional members are omitted when unset, not sent as null.",
+  "options": { "retainMinutes": 5, "removeMinutes": 1440 },
+  "snapshot": {
+    "statuses": [
+      { "key": "Engine Phase", "value": "running" },
+      {
+        "key": "Importer",
+        "value": "Error",
+        "message": "Batch 41 failed: connection reset",
+        "critical": true,
+        "data": { "batch": 41, "retries": 3 }
+      }
+    ]
+  },
+  "expect": {
+    "retain": 5,
+    "remove": 1440,
+    "statuses": {
+      "Engine Phase": { "value": "running" },
+      "Importer": {
+        "value": "Error",
+        "message": "Batch 41 failed: connection reset",
+        "critical": true,
+        "data": { "batch": 41, "retries": 3 }
+      }
+    }
+  }
+}

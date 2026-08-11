@@ -1,0 +1,21 @@
+{
+  "name": "counters-detailed",
+  "description": "Counters are emitted in the detailed array form, never the shorthand map. An absent instance is omitted rather than sent empty. Names containing dots survive intact — the case the shorthand form gets wrong.",
+  "options": { "retainMinutes": 5, "removeMinutes": 1440 },
+  "snapshot": {
+    "counters": [
+      { "object": "SNMP", "counter": "Requests Pending", "value": 42 },
+      { "object": "Queue", "counter": "Depth", "instance": "inbound", "value": 5 },
+      { "object": "Importer", "counter": "Batch 41.7 Duration ms", "value": 12.4 }
+    ]
+  },
+  "expect": {
+    "retain": 5,
+    "remove": 1440,
+    "counters": [
+      { "path": { "object": "SNMP", "counter": "Requests Pending" }, "value": 42 },
+      { "path": { "object": "Queue", "counter": "Depth", "instance": "inbound" }, "value": 5 },
+      { "path": { "object": "Importer", "counter": "Batch 41.7 Duration ms" }, "value": 12.4 }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "timestamp-as-age-and-message",
+  "description": "There is no timestamp value type. A recorded instant becomes two things: an age counter to alert on, and a status message to read. Age is derived from the snapshot instant, so the case pins both the observation time and the flush time.",
+  "options": { "retainMinutes": 5, "removeMinutes": 1440, "snapshotAt": "2026-08-10T09:15:54Z" },
+  "snapshot": {
+    "timestamps": [
+      {
+        "object": "Sync",
+        "counter": "Last Success Age s",
+        "statusKey": "Last Sync",
+        "observedAt": "2026-08-10T09:14:22Z"
+      }
+    ]
+  },
+  "expect": {
+    "retain": 5,
+    "remove": 1440,
+    "counters": [
+      { "path": { "object": "Sync", "counter": "Last Success Age s" }, "value": 92 }
+    ],
+    "statuses": {
+      "Last Sync": { "value": "OK", "message": "2026-08-10T09:14:22Z" }
+    }
+  }
+}
