@@ -1,0 +1,39 @@
+{
+  "name": "@netcrunch/telemetry",
+  "version": "0.1.0-alpha.0",
+  "description": "Push metrics, states and events from a Node.js application into NetCrunch.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "src",
+    "index.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "Apache-2.0",
+  "author": "AdRem Software",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adremsoft/netcrunch-telemetry.git",
+    "directory": "js"
+  },
+  "homepage": "https://github.com/adremsoft/netcrunch-telemetry/tree/main/js",
+  "keywords": [
+    "netcrunch",
+    "monitoring",
+    "telemetry",
+    "metrics",
+    "observability"
+  ]
+}
