@@ -1,0 +1,27 @@
+{
+  "name": "aggregate-category",
+  "kind": "aggregate",
+  "description": "A CategoryCount holds 1 against one instance of a counter at a time, decrementing the instance it leaves. Buckets are instances of a single counter, not separate counters. Setting the current value again is a no-op, and both null and disposal leave every instance at zero.",
+  "operations": [
+    { "op": "category", "id": "phase", "object": "Workers", "counter": "By Phase" },
+
+    { "op": "set", "id": "phase", "value": "parsing" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "parsing", "value": 1 },
+
+    { "op": "set", "id": "phase", "value": "writing" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "parsing", "value": 0 },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "writing", "value": 1 },
+
+    { "op": "set", "id": "phase", "value": "writing" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "writing", "value": 1 },
+
+    { "op": "set", "id": "phase", "value": null },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "writing", "value": 0 },
+
+    { "op": "set", "id": "phase", "value": "idle" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "idle", "value": 1 },
+
+    { "op": "dispose", "id": "phase" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "idle", "value": 0 }
+  ]
+}

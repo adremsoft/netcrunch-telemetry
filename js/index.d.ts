@@ -64,12 +64,47 @@ export interface EventPayloadEntry {
   severity?: string;
 }
 
+export type DataObjectType = "table" | "time-series" | "category";
+
+interface DataObjectCommon {
+  /** Display title. */
+  name?: string;
+  /** A line of explanation shown with the object. */
+  message?: string;
+  /** The object's own state — "OK", "Warning", "Error". Not an alert; send a status for that. */
+  status?: string;
+}
+
+export interface TableOptions extends DataObjectCommon {
+  columns: unknown[];
+  /** One array per row, each the same length as `columns`. */
+  rows: unknown[][];
+}
+
+export interface TimeSeriesOptions extends DataObjectCommon {
+  /** Label for the plotted series. */
+  seriesName?: string;
+  /** Epoch milliseconds. Same length as `values`. */
+  timestamps: number[];
+  values: number[];
+}
+
+export interface CategoryChartOptions extends DataObjectCommon {
+  seriesName?: string;
+  /** Same length as `values`. */
+  categories: string[];
+  values: number[];
+}
+
+export type DataPayloadEntry = { type: DataObjectType } & Record<string, unknown>;
+
 export interface Payload {
   retain: number;
   remove: number;
   counters?: CounterPayloadEntry[];
   statuses?: Record<string, StatusPayloadEntry>;
   events?: EventPayloadEntry[];
+  data?: Record<string, DataPayloadEntry>;
 }
 
 /** A resolved counter. Resolve once, keep the handle, mutate it on the hot path. */
@@ -142,6 +177,15 @@ export declare class Telemetry {
 
   /** Records when something last happened, as an age counter plus a readable status. */
   timestamp(object: string, counter: string, statusKey: string, options?: TimestampOptions): this;
+
+  /** Stages a table rendered on the sensor's page. Re-using an id replaces it. */
+  table(id: string, options: TableOptions): this;
+  /** Stages a time series chart. Timestamps are epoch milliseconds. */
+  timeSeries(id: string, options: TimeSeriesOptions): this;
+  /** Stages a labelled bar chart. Named to avoid colliding with `category()`, the aggregate. */
+  categoryChart(id: string, options: CategoryChartOptions): this;
+  /** Generic form behind the three above. Rejects any type outside `DataObjectType`. */
+  data(id: string, type: DataObjectType, options: Record<string, unknown>): this;
 
   selfCount(object: string, counter: string, instance?: string): SelfCount;
   partCount(object: string, counter: string, instance?: string): PartCount;

@@ -1,4 +1,4 @@
-@{
+﻿@{
     RootModule        = 'NetCrunch.Telemetry.psm1'
     ModuleVersion     = '0.1.0'
     GUID              = '8f3a1c2e-5b47-4d19-9e6a-7c0d2f4b8a31'
@@ -20,6 +20,9 @@
         'Set-NCStatus'
         'Add-NCEvent'
         'Set-NCTimestamp'
+        'Set-NCTable'
+        'Set-NCTimeSeries'
+        'Set-NCCategoryChart'
         'Get-NCTelemetryPayload'
         'Send-NCTelemetry'
     )

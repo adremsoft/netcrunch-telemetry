@@ -77,6 +77,9 @@ For a nightly job, `-RetainMinutes 1500` (25 hours) gives a one-hour grace perio
 | `Set-NCStatus` | Stage a state with an optional message. **This is what alerts fire on.** |
 | `Add-NCEvent` | Stage a discrete occurrence. Accumulates. |
 | `Set-NCTimestamp` | Record when something last happened — see below. |
+| `Set-NCTable` | Stage a table on the sensor page. |
+| `Set-NCTimeSeries` | Stage a time chart. Timestamps are epoch milliseconds. |
+| `Set-NCCategoryChart` | Stage a labelled bar chart. |
 | `Get-NCTelemetryPayload` | Build the payload without sending. `-AsJson` to inspect it. |
 | `Send-NCTelemetry` | Post everything as one request. Supports `-WhatIf`. |
 | `Clear-NCTelemetry` | Empty the buffer without disconnecting. |
@@ -88,6 +91,32 @@ For a nightly job, `-RetainMinutes 1500` (25 hours) gives a one-hour grace perio
 
 Counters are numbers you chart. **Statuses are what NetCrunch alerting acts on.** If something can be
 wrong, express it as a status — a counter alone will not raise anything.
+
+### Data objects
+
+A table or chart rendered on the sensor's page, with no dashboard to configure:
+
+```powershell
+Set-NCTable -Id 'services' -Name 'Stopped Services' `
+            -Columns 'Name', 'StartType' `
+            -Rows @(, @('wuauserv', 'Manual'))
+
+Set-NCCategoryChart -Id 'byOutcome' -Name 'Items by Outcome' -SeriesName 'Items' `
+                    -Categories 'imported', 'skipped', 'failed' -Values 1204, 18, 3
+```
+
+`Id` is the object's identity across payloads — staging the same id again replaces it.
+
+**Watch the comma on `-Rows`.** It is an array of arrays, and PowerShell unrolls a single nested
+array, so one row needs `@(, @('a', 1))`. Several rows are fine as `@(@('a', 1), @('b', 2))`. The
+module checks that each row is an array and says so if it is not.
+
+Parallel arrays must match in length, and rows must match the column count. The receiver checks
+neither and will render the mismatch, so the module rejects it. Arrays are also capped at 1024
+entries, above which the receiver silently truncates — rejected locally for the same reason.
+
+A data object's own `-Status` is part of what is *displayed*. **Alerting acts on statuses** — a red
+table is not an alert, so send `Set-NCStatus` too if something should fire.
 
 ### Timestamps
 
@@ -120,12 +149,26 @@ Runs the shared fixtures in [`../conformance/cases`](../conformance/cases). No P
 Windows PowerShell ships Pester 3.4 and PowerShell 7 ships Pester 5, whose syntaxes are incompatible,
 and requiring a module install to verify a module is a poor trade for a runner this small.
 
+## Editing this module
+
+**Save `.ps1`, `.psm1` and `.psd1` files as UTF-8 *with* a BOM.**
+
+Without one, Windows PowerShell 5.1 decodes the file as ANSI. A UTF-8 em dash then ends in byte
+`0x94`, which CP1252 maps to a closing smart quote — and PowerShell treats smart quotes as string
+delimiters, so the literal terminates early and the file fails to parse. In a comment it is
+invisible; inside a string it breaks the module, and only on 5.1.
+
+Run the conformance suite under both editions before committing. PowerShell 7 will not catch this.
+
 ## Known gaps
 
+- **No lifetime-bound aggregates.** [`spec/client-model.md`](../spec/client-model.md) §2 defines
+  `SelfCount`, `PartCount` and `CategoryCount`; this module implements none of them, and the
+  conformance runner reports those cases as **skipped** rather than passed. They are worth much less
+  here than elsewhere: the dominant PowerShell case is a script that collects, sends once and exits,
+  where there is no long-lived object whose lifetime a count could be bound to.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   has to be computed and sent as its own counter. Fine for single-shot scripts; a long-running loop
   currently does that arithmetic itself.
-- **No `data` objects.** Tables, time-series and category charts are deferred from v1 pending a
-  decision on client ergonomics.
 - **No authentication beyond the endpoint URL.** Blocked on the spec.
 - **Not published to the PowerShell Gallery** while the module is alpha.

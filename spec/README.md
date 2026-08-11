@@ -1,6 +1,9 @@
 # Specification
 
 - **[v1.md](v1.md)** — the wire format. Normative for every client library in this repository.
+- **[client-model.md](client-model.md)** — behaviour above the wire: counter handles, lifetime-bound
+  aggregates, disposal. Invisible to the receiver, so two libraries could satisfy `v1.md` perfectly
+  and still disagree about all of it.
 
 ## Relationship to the NetCrunch product documentation
 

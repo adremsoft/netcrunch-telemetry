@@ -1,0 +1,23 @@
+{
+  "name": "aggregate-zero-is-not-absent",
+  "kind": "aggregate",
+  "description": "A counter back at zero is still reported. Zero and absent mean different things on the wire: absent is how a counter expires, so omitting zeroes would make an idle pool indistinguishable from a crashed one. Disposing an aggregate leaves its counter reporting zero rather than removing it.",
+  "options": { "retainMinutes": 5, "removeMinutes": 1440 },
+  "operations": [
+    { "op": "selfCount", "id": "lease", "object": "Pool", "counter": "Leases Active" },
+    { "op": "dispose", "id": "lease" },
+
+    { "op": "category", "id": "phase", "object": "Workers", "counter": "By Phase" },
+    { "op": "set", "id": "phase", "value": "parsing" },
+    { "op": "set", "id": "phase", "value": "idle" }
+  ],
+  "expect": {
+    "retain": 5,
+    "remove": 1440,
+    "counters": [
+      { "path": { "object": "Pool", "counter": "Leases Active" }, "value": 0 },
+      { "path": { "object": "Workers", "counter": "By Phase", "instance": "parsing" }, "value": 0 },
+      { "path": { "object": "Workers", "counter": "By Phase", "instance": "idle" }, "value": 1 }
+    ]
+  }
+}

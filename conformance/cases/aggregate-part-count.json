@@ -1,0 +1,26 @@
+{
+  "name": "aggregate-part-count",
+  "kind": "aggregate",
+  "description": "A PartCount adjusts the counter by the difference from its own previous contribution, so repeated sets do not accumulate. Disposal withdraws exactly what it contributed, leaving whatever the rest of the program put there untouched.",
+  "operations": [
+    { "op": "counter", "object": "Cache", "counter": "Entries", "set": 1000 },
+
+    { "op": "partCount", "id": "shard", "object": "Cache", "counter": "Entries" },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1000 },
+
+    { "op": "set", "id": "shard", "value": 5 },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1005 },
+
+    { "op": "set", "id": "shard", "value": 9 },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1009 },
+
+    { "op": "set", "id": "shard", "value": 3 },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1003 },
+
+    { "op": "set", "id": "shard", "value": 3 },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1003 },
+
+    { "op": "dispose", "id": "shard" },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 1000 }
+  ]
+}

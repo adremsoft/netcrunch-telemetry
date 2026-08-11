@@ -15,6 +15,8 @@ export const MAX_STATUS_KEY_LENGTH = 500;
 function describe(value) {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
+  if (value === "") return "an empty string";
+  if (typeof value === "string" && value.trim() === "") return "a blank string";
   return typeof value;
 }
 
@@ -63,6 +65,70 @@ export function assertStatusValue(value) {
   }
   if (value === "") {
     throw new TypeError("Status value must not be empty — NetCrunch discards empty statuses without reporting it.");
+  }
+}
+
+/** Beyond this the receiver slices arrays without telling anyone. */
+export const MAX_DATA_ENTRIES = 1024;
+
+/** Type to the members that carry its payload. Also the set of accepted types. */
+export const DATA_TYPE_MEMBERS = {
+  table: ["columns", "rows"],
+  "time-series": ["timestamps", "values"],
+  category: ["categories", "values"],
+};
+
+const DATA_TYPES = DATA_TYPE_MEMBERS;
+
+export function assertDataObject(id, type, details) {
+  if (typeof id !== "string" || id.trim() === "") {
+    throw new TypeError(`Data object id is required and must be a non-empty string (got ${describe(id)}).`);
+  }
+
+  if (type === "internal") {
+    throw new TypeError('The "internal" data object type is reserved for NetCrunch\'s own sensors.');
+  }
+
+  const required = DATA_TYPES[type];
+  if (required === undefined) {
+    const known = Object.keys(DATA_TYPES).join(", ");
+    throw new TypeError(
+      `Unknown data object type "${type}". NetCrunch discards these with only a server-side warning. Use one of: ${known}.`
+    );
+  }
+
+  for (const member of required) {
+    if (!Array.isArray(details[member])) {
+      throw new TypeError(`A ${type} data object requires "${member}" to be an array.`);
+    }
+    if (details[member].length > MAX_DATA_ENTRIES) {
+      throw new RangeError(
+        `"${member}" has ${details[member].length} entries; NetCrunch truncates at ${MAX_DATA_ENTRIES} without reporting it.`
+      );
+    }
+  }
+
+  // Ragged parallel arrays are the dangerous case: nothing errors anywhere, and
+  // the chart quietly plots the wrong thing.
+  if (type === "table") {
+    const width = details.columns.length;
+    details.rows.forEach((row, index) => {
+      if (!Array.isArray(row)) {
+        throw new TypeError(`Table row ${index} must be an array of cells.`);
+      }
+      if (row.length !== width) {
+        throw new RangeError(
+          `Table row ${index} has ${row.length} cells but there are ${width} columns.`
+        );
+      }
+    });
+  } else {
+    const [left, right] = required;
+    if (details[left].length !== details[right].length) {
+      throw new RangeError(
+        `"${left}" has ${details[left].length} entries but "${right}" has ${details[right].length}; they must match.`
+      );
+    }
   }
 }
 

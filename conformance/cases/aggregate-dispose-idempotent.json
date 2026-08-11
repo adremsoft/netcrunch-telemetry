@@ -1,0 +1,27 @@
+{
+  "name": "aggregate-dispose-idempotent",
+  "kind": "aggregate",
+  "description": "Disposing twice has the same effect as disposing once, for all three aggregates. An explicit dispose and a scope guard can both fire on the same object, and a double decrement drives the value negative — which drifts away from every threshold instead of towards one, so nothing ever reports it.",
+  "operations": [
+    { "op": "counter", "object": "Cache", "counter": "Entries", "set": 100 },
+
+    { "op": "selfCount", "id": "lease", "object": "Pool", "counter": "Leases Active" },
+    { "op": "partCount", "id": "part", "object": "Cache", "counter": "Entries" },
+    { "op": "category", "id": "phase", "object": "Workers", "counter": "By Phase" },
+    { "op": "set", "id": "part", "value": 7 },
+    { "op": "set", "id": "phase", "value": "parsing" },
+
+    { "op": "dispose", "id": "lease" },
+    { "op": "dispose", "id": "lease" },
+    { "op": "dispose", "id": "lease" },
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 0 },
+
+    { "op": "dispose", "id": "part" },
+    { "op": "dispose", "id": "part" },
+    { "op": "assert", "object": "Cache", "counter": "Entries", "value": 100 },
+
+    { "op": "dispose", "id": "phase" },
+    { "op": "dispose", "id": "phase" },
+    { "op": "assert", "object": "Workers", "counter": "By Phase", "instance": "parsing", "value": 0 }
+  ]
+}

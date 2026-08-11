@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Reporting the outcome of a scheduled task to NetCrunch.
 

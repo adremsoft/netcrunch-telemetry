@@ -19,6 +19,7 @@ Three primitives:
 - **Counters** — numbers. Queue depth, requests served, bytes written.
 - **Statuses** — a state with a message. `"Error" / "Service not responding"`. This is what alerts fire on.
 - **Events** — discrete things that happened, with a message.
+- **Data objects** — a table or chart rendered on the sensor's page, with no dashboard to configure.
 
 Four design choices that make it cheap enough to leave in production code:
 
@@ -43,6 +44,8 @@ using lease = stats.selfCount("Pool", "Leases Active");
 ```js
 stats.status("Importer", "OK", { message: "batch 41/120" });
 stats.event("Import failed", { severity: "error" });
+
+stats.table("services", { columns: ["Name", "State"], rows: stopped });
 ```
 
 ## Repository layout
@@ -63,8 +66,9 @@ One repository on purpose: the spec and every implementation move together, and 
 
 | Language | Status |
 | --- | --- |
-| Spec v1 | Draft — two decisions open before freeze |
-| Conformance suite | Draft — 4 cases |
+| Spec v1 | Draft — authentication still open before freeze |
+| Client model | Draft — handles, aggregates, disposal |
+| Conformance suite | Draft — 11 cases |
 | [PowerShell](powershell/) | **Alpha** — passes conformance on 5.1 and 7 |
 | [Node.js](js/) | **Alpha** — passes conformance; includes the aggregates |
 | Python | Not started |

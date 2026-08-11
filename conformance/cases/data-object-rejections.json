@@ -1,0 +1,41 @@
+{
+  "name": "data-object-rejections",
+  "description": "Malformed data objects the receiver either discards without telling anyone, or renders wrong. Ragged parallel arrays are the dangerous case: nothing errors, and the chart simply plots the wrong thing.",
+  "rejects": [
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "pie", "categories": ["a"], "values": [1] },
+      "reason": "An unrecognised type is discarded server-side with only a console warning; the client sees success."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "internal", "columns": ["a"], "rows": [["b"]] },
+      "reason": "The internal type is reserved for NetCrunch's own sensors."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "", "type": "table", "columns": ["a"], "rows": [["b"]] },
+      "reason": "The id is the object's identity across payloads and must not be empty."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "table", "columns": ["a", "b"] },
+      "reason": "A table requires both columns and rows."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "table", "columns": ["a", "b"], "rows": [["only-one-cell"]] },
+      "reason": "Every row must have as many cells as there are columns; the receiver renders the mismatch rather than reporting it."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "time-series", "timestamps": [1, 2, 3], "values": [10, 20] },
+      "reason": "timestamps and values must be the same length."
+    },
+    {
+      "kind": "data",
+      "input": { "id": "x", "type": "category", "categories": ["a", "b"], "values": [1, 2, 3] },
+      "reason": "categories and values must be the same length."
+    }
+  ]
+}

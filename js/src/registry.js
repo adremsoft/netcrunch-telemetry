@@ -15,7 +15,9 @@ import {
   assertCounterInstance,
   assertCounterPath,
   assertCounterValue,
+  assertDataObject,
   assertEventMessage,
+  DATA_TYPE_MEMBERS,
   assertStatusKey,
   assertStatusValue,
 } from "./validate.js";
@@ -32,6 +34,7 @@ export class Telemetry {
   #counters = new Map();
   #statuses = new Map();
   #timestamps = new Map();
+  #dataObjects = new Map();
   #events = [];
   #timer = null;
   #inFlight = null;
@@ -162,6 +165,54 @@ export class Telemetry {
     return this;
   }
 
+  // -- data objects -------------------------------------------------------
+
+  /**
+   * Stages a table, chart or series rendered on the sensor's page.
+   *
+   * `id` is the object's identity across payloads — staging the same id again
+   * replaces it. Unlike a counter, a data object is a whole view each time; there
+   * is no incremental form.
+   *
+   * A data object's own `status` is part of what is displayed. Alerting acts on
+   * statuses, not on this — a red table is not an alert.
+   */
+  data(id, type, options = {}) {
+    assertDataObject(id, type, options);
+
+    const object = { type };
+    for (const member of DATA_TYPE_MEMBERS[type]) object[member] = options[member];
+
+    if (options.name !== undefined) object.name = options.name;
+    // seriesName labels a plotted series; a table has no series to label.
+    if (options.seriesName !== undefined && type !== "table") object.seriesName = options.seriesName;
+    if (options.message !== undefined) object.message = options.message;
+    if (options.status !== undefined) object.status = options.status;
+
+    this.#dataObjects.set(id, object);
+    return this;
+  }
+
+  /** @param {{name?: string, columns: unknown[], rows: unknown[][], message?: string, status?: string}} options */
+  table(id, options = {}) {
+    return this.data(id, "table", options);
+  }
+
+  /** @param {{name?: string, seriesName?: string, timestamps: number[], values: number[], message?: string, status?: string}} options */
+  timeSeries(id, options = {}) {
+    return this.data(id, "time-series", options);
+  }
+
+  /**
+   * A labelled bar chart. Named `categoryChart` rather than `category` because
+   * `category()` is the lifetime-bound aggregate — different thing entirely.
+   *
+   * @param {{name?: string, seriesName?: string, categories: string[], values: number[], message?: string, status?: string}} options
+   */
+  categoryChart(id, options = {}) {
+    return this.data(id, "category", options);
+  }
+
   // -- lifetime-bound aggregates -----------------------------------------
 
   /** Holds +1 until disposed. `using lease = stats.selfCount("Pool", "Leases Active")`. */
@@ -218,6 +269,7 @@ export class Telemetry {
     if (counters.length > 0) payload.counters = counters;
     if (statuses.size > 0) payload.statuses = Object.fromEntries(statuses);
     if (this.#events.length > 0) payload.events = [...this.#events];
+    if (this.#dataObjects.size > 0) payload.data = Object.fromEntries(this.#dataObjects);
 
     return payload;
   }
@@ -238,7 +290,12 @@ export class Telemetry {
     if (this.#inFlight) return this.#inFlight;
 
     const payload = this.buildPayload({ snapshotAt });
-    if (payload.counters === undefined && payload.statuses === undefined && payload.events === undefined) {
+    if (
+      payload.counters === undefined &&
+      payload.statuses === undefined &&
+      payload.events === undefined &&
+      payload.data === undefined
+    ) {
       return;
     }
 
@@ -294,6 +351,7 @@ export class Telemetry {
     this.#counters.clear();
     this.#statuses.clear();
     this.#timestamps.clear();
+    this.#dataObjects.clear();
     this.#events.length = 0;
     return this;
   }

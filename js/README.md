@@ -118,6 +118,9 @@ over days into a log line while you are still writing the code. On by default ou
 | `.status(key, value, {message, critical, data})` | Stage a state. |
 | `.event(message, {severity})` | Stage an occurrence. Cleared once sent. |
 | `.timestamp(object, counter, statusKey, {observedAt})` | Record when something last happened. |
+| `.table(id, {name, columns, rows})` | Stage a table on the sensor page. |
+| `.timeSeries(id, {name, seriesName, timestamps, values})` | Stage a time chart. Timestamps are epoch ms. |
+| `.categoryChart(id, {name, seriesName, categories, values})` | Stage a labelled bar chart. |
 | `.selfCount` `.partCount` `.category` | Lifetime-bound aggregates. |
 | `.buildPayload({snapshotAt})` | Inspect what a flush would post. |
 | `.flush({signal})` | Send once. Concurrent calls share one request. |
@@ -125,6 +128,38 @@ over days into a log line while you are still writing the code. On by default ou
 | `.clear()` | Discard everything staged. |
 
 Failures from automatic flushes have nowhere to propagate, so pass `onError` to see them.
+
+### Data objects
+
+A table or chart rendered on the sensor's page, with no dashboard to configure:
+
+```js
+stats.table("services", {
+  name: "Stopped Services",
+  columns: ["Name", "StartType"],
+  rows: stopped.map((s) => [s.name, s.startType]),
+});
+
+stats.categoryChart("byOutcome", {
+  name: "Items by Outcome",
+  seriesName: "Items",
+  categories: ["imported", "skipped", "failed"],
+  values: [1204, 18, 3],
+});
+```
+
+The `id` is the object's identity across payloads — staging the same id again replaces it. There is no
+incremental form; a data object is a whole view each time.
+
+`categoryChart` is deliberately not called `category`, which is the lifetime-bound aggregate above.
+Same word in NetCrunch, unrelated meanings.
+
+A data object's own `status` is part of what is *displayed*. **Alerting acts on statuses** — a red
+table is not an alert, so send a status too if something should fire.
+
+Parallel arrays must match in length, and rows must match the column count. The receiver checks
+neither and will render the mismatch, so the library rejects it. Arrays are also capped at 1024
+entries, above which the receiver silently truncates — rejected locally for the same reason.
 
 ### Timestamps
 
@@ -156,12 +191,11 @@ suite still has to run on Node 20.
 
 ## Known gaps
 
-- **ESM only.** A CommonJS build needs a bundler, and the package deliberately has no build step yet.
-  CJS consumers can `await import()` in the meantime.
+- **ESM only, deliberately.** No CommonJS build is planned. Adding one means adding a bundler, and
+  NetCrunch's own Node code is moving to ESM regardless. CJS consumers can `await import()`.
 - **No `maxInfo`/`minInfo`.** Capturing *what caused* a peak has no channel in v1 — counter
   `metadata` is discarded server-side. Pair a peak counter with a status message for now.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
-- **No `data` objects.** Tables, time-series and category charts are deferred from v1.
 - **No authentication beyond the endpoint URL.** Blocked on the spec.
 - **Not published to npm** while the package is alpha.

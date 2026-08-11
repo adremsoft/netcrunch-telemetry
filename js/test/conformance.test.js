@@ -56,6 +56,10 @@ function applySnapshot(stats, snapshot = {}) {
     stats.event(entry.message, { severity: entry.severity });
   }
 
+  for (const entry of snapshot.data ?? []) {
+    stageDataObject(stats, entry);
+  }
+
   for (const entry of snapshot.timestamps ?? []) {
     stats.timestamp(entry.object, entry.counter, entry.statusKey, {
       observedAt: new Date(entry.observedAt),
@@ -70,6 +74,78 @@ function sortCounters(payload) {
   return { ...payload, counters: [...payload.counters].sort((a, b) => key(a).localeCompare(key(b))) };
 }
 
+/**
+ * Replays an aggregate case. Assertions are interleaved with the operations
+ * because the intermediate states are the point — an aggregate that ends up
+ * correct having passed through a wrong value is still broken.
+ */
+function runOperations(stats, operations) {
+  const aggregates = new Map();
+
+  const bind = (id, aggregate) => {
+    assert.ok(!aggregates.has(id), `id "${id}" is bound twice`);
+    aggregates.set(id, aggregate);
+  };
+  const lookup = (id) => {
+    const aggregate = aggregates.get(id);
+    assert.ok(aggregate, `no aggregate bound to id "${id}"`);
+    return aggregate;
+  };
+
+  for (const step of operations) {
+    switch (step.op) {
+      case "counter": {
+        const handle = stats.counter(step.object, step.counter, step.instance);
+        if (step.set !== undefined) handle.set(step.set);
+        break;
+      }
+      case "selfCount":
+        bind(step.id, stats.selfCount(step.object, step.counter, step.instance));
+        break;
+      case "partCount":
+        bind(step.id, stats.partCount(step.object, step.counter, step.instance));
+        break;
+      case "category":
+        bind(step.id, stats.category(step.object, step.counter));
+        break;
+      case "set":
+        lookup(step.id).set(step.value);
+        break;
+      case "dispose":
+        lookup(step.id).dispose();
+        break;
+      case "assert": {
+        const label = `${step.object}/${step.counter}${step.instance ? `.${step.instance}` : ""}`;
+        assert.equal(stats.counter(step.object, step.counter, step.instance).value, step.value, label);
+        break;
+      }
+      default:
+        throw new Error(`Unknown operation "${step.op}".`);
+    }
+  }
+}
+
+/**
+ * Fixtures describe a data object as one flat record; the API splits it by type.
+ * An unknown type reaches `default` and is passed through to the library, which
+ * is exactly what the rejection cases need to exercise.
+ */
+function stageDataObject(stats, entry) {
+  const { id, type, ...rest } = entry;
+  switch (type) {
+    case "table":
+      return stats.table(id, rest);
+    case "time-series":
+      return stats.timeSeries(id, rest);
+    case "category":
+      return stats.categoryChart(id, rest);
+    default:
+      // Passed through with the type intact, so an unknown-type rejection fails
+      // for the reason the fixture states rather than incidentally.
+      return stats.data(id, type, rest);
+  }
+}
+
 function reject(stats, kind, input) {
   switch (kind) {
     case "counter":
@@ -78,6 +154,8 @@ function reject(stats, kind, input) {
       return () => stats.status(input.key, input.value);
     case "event":
       return () => stats.event(input.message);
+    case "data":
+      return () => stageDataObject(stats, input);
     default:
       throw new Error(`Unknown rejection kind "${kind}".`);
   }
@@ -93,6 +171,21 @@ for (const testCase of loadCases()) {
         });
       });
     }
+    continue;
+  }
+
+  if (testCase.operations) {
+    test(testCase.name, () => {
+      const stats = connect(testCase.options);
+      runOperations(stats, testCase.operations);
+
+      // An aggregate case may also pin the payload, tying in-memory behaviour
+      // back to what actually goes over the wire.
+      if (testCase.expect) {
+        const actual = JSON.parse(JSON.stringify(stats.buildPayload()));
+        assert.deepStrictEqual(sortCounters(actual), sortCounters(testCase.expect));
+      }
+    });
     continue;
   }
 

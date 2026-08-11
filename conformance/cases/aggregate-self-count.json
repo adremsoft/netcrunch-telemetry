@@ -1,0 +1,20 @@
+{
+  "name": "aggregate-self-count",
+  "kind": "aggregate",
+  "description": "A SelfCount adds 1 on creation and subtracts 1 on disposal. Two of them against the same counter accumulate, and each withdraws only its own contribution.",
+  "operations": [
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 0 },
+
+    { "op": "selfCount", "id": "first", "object": "Pool", "counter": "Leases Active" },
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 1 },
+
+    { "op": "selfCount", "id": "second", "object": "Pool", "counter": "Leases Active" },
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 2 },
+
+    { "op": "dispose", "id": "first" },
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 1 },
+
+    { "op": "dispose", "id": "second" },
+    { "op": "assert", "object": "Pool", "counter": "Leases Active", "value": 0 }
+  ]
+}

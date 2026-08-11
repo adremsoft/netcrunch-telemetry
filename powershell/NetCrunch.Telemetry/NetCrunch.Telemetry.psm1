@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
     NetCrunch.Telemetry
@@ -19,6 +19,7 @@
 Set-StrictMode -Version Latest
 
 $script:MaxStatusKeyLength = 500
+$script:MaxDataEntries     = 1024
 $script:JsonDepth          = 20
 $script:State              = $null
 
@@ -184,6 +185,7 @@ function Connect-NCTelemetry {
         Counters       = [ordered]@{}
         Statuses       = [ordered]@{}
         Timestamps     = [ordered]@{}
+        DataObjects    = [ordered]@{}
         Events         = New-Object System.Collections.ArrayList
     }
 }
@@ -208,10 +210,11 @@ function Clear-NCTelemetry {
     param()
 
     Assert-NCConnected
-    $script:State.Counters   = [ordered]@{}
-    $script:State.Statuses   = [ordered]@{}
-    $script:State.Timestamps = [ordered]@{}
-    $script:State.Events     = New-Object System.Collections.ArrayList
+    $script:State.Counters    = [ordered]@{}
+    $script:State.Statuses    = [ordered]@{}
+    $script:State.Timestamps  = [ordered]@{}
+    $script:State.DataObjects = [ordered]@{}
+    $script:State.Events      = New-Object System.Collections.ArrayList
 }
 
 # ---------------------------------------------------------------------------
@@ -357,6 +360,160 @@ function Add-NCEvent {
     [void]$script:State.Events.Add($event)
 }
 
+# ---------------------------------------------------------------------------
+# Data objects
+# ---------------------------------------------------------------------------
+
+function Assert-NCDataArray {
+    param([string]$Name, $Value)
+
+    if ($Value -isnot [System.Collections.IList]) {
+        throw "$Name is required and must be an array."
+    }
+    if ($Value.Count -gt $script:MaxDataEntries) {
+        throw "$Name has $($Value.Count) entries. NetCrunch truncates at $script:MaxDataEntries without reporting it."
+    }
+}
+
+function New-NCDataObject {
+    param(
+        [string]$Id,
+        [string]$Type,
+        [hashtable]$Members,
+        [string]$Name,
+        [string]$SeriesName,
+        [string]$Message,
+        [string]$Status
+    )
+
+    Assert-NCConnected
+
+    if ([string]::IsNullOrWhiteSpace($Id)) {
+        throw 'Id is required and must be a non-empty string. It is the object identity across payloads.'
+    }
+
+    $object = [ordered]@{ type = $Type }
+    foreach ($key in $Members.Keys) { $object[$key] = $Members[$key] }
+
+    if (-not [string]::IsNullOrEmpty($Name))       { $object['name'] = $Name }
+    if (-not [string]::IsNullOrEmpty($SeriesName)) { $object['seriesName'] = $SeriesName }
+    if (-not [string]::IsNullOrEmpty($Message))    { $object['message'] = $Message }
+    if (-not [string]::IsNullOrEmpty($Status))     { $object['status'] = $Status }
+
+    $script:State.DataObjects[$Id] = $object
+}
+
+function Set-NCTable {
+    <#
+    .SYNOPSIS
+        Stages a table rendered on the sensor's page.
+
+    .DESCRIPTION
+        Staging the same Id again replaces the table — a data object is a whole
+        view each time, with no incremental form.
+
+        Rows is an array of arrays. PowerShell unrolls a single nested array, so
+        one row needs the comma operator: -Rows @(, @('a', 1)).
+
+    .EXAMPLE
+        Set-NCTable -Id 'services' -Name 'Stopped Services' `
+                    -Columns 'Name', 'StartType' `
+                    -Rows @(, @('wuauserv', 'Manual'))
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$Id,
+        [object[]]$Columns,
+        [object[]]$Rows,
+        [string]$Name,
+        [string]$Message,
+        [string]$Status
+    )
+
+    Assert-NCConnected
+    Assert-NCDataArray -Name 'Columns' -Value $Columns
+    Assert-NCDataArray -Name 'Rows' -Value $Rows
+
+    # A ragged table is the dangerous case: nothing errors anywhere and the page
+    # simply renders the wrong thing.
+    for ($i = 0; $i -lt $Rows.Count; $i++) {
+        $row = $Rows[$i]
+        if ($row -isnot [System.Collections.IList]) {
+            throw "Row $i must be an array of cells. A single row needs the comma operator: -Rows @(, @('a', 1))."
+        }
+        if ($row.Count -ne $Columns.Count) {
+            throw "Row $i has $($row.Count) cells but there are $($Columns.Count) columns."
+        }
+    }
+
+    New-NCDataObject -Id $Id -Type 'table' -Members @{ columns = $Columns; rows = $Rows } `
+                     -Name $Name -Message $Message -Status $Status
+}
+
+function Set-NCTimeSeries {
+    <#
+    .SYNOPSIS
+        Stages a time series chart. Timestamps are epoch milliseconds.
+
+    .EXAMPLE
+        Set-NCTimeSeries -Id 'throughput' -Name 'Throughput' -SeriesName 'Rows/sec' `
+                         -Timestamps $stamps -Values $rates
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$Id,
+        [object[]]$Timestamps,
+        [object[]]$Values,
+        [string]$Name,
+        [string]$SeriesName,
+        [string]$Message,
+        [string]$Status
+    )
+
+    Assert-NCConnected
+    Assert-NCDataArray -Name 'Timestamps' -Value $Timestamps
+    Assert-NCDataArray -Name 'Values' -Value $Values
+
+    if ($Timestamps.Count -ne $Values.Count) {
+        throw "Timestamps has $($Timestamps.Count) entries but Values has $($Values.Count); they must match."
+    }
+
+    New-NCDataObject -Id $Id -Type 'time-series' -Members @{ timestamps = $Timestamps; values = $Values } `
+                     -Name $Name -SeriesName $SeriesName -Message $Message -Status $Status
+}
+
+function Set-NCCategoryChart {
+    <#
+    .SYNOPSIS
+        Stages a labelled bar chart.
+
+    .EXAMPLE
+        Set-NCCategoryChart -Id 'byOutcome' -Name 'Items by Outcome' -SeriesName 'Items' `
+                            -Categories 'imported', 'skipped', 'failed' -Values 1204, 18, 3
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$Id,
+        [object[]]$Categories,
+        [object[]]$Values,
+        [string]$Name,
+        [string]$SeriesName,
+        [string]$Message,
+        [string]$Status
+    )
+
+    Assert-NCConnected
+    Assert-NCDataArray -Name 'Categories' -Value $Categories
+    Assert-NCDataArray -Name 'Values' -Value $Values
+
+    if ($Categories.Count -ne $Values.Count) {
+        throw "Categories has $($Categories.Count) entries but Values has $($Values.Count); they must match."
+    }
+
+    New-NCDataObject -Id $Id -Type 'category' -Members @{ categories = $Categories; values = $Values } `
+                     -Name $Name -SeriesName $SeriesName -Message $Message -Status $Status
+}
+
 function Set-NCTimestamp {
     <#
     .SYNOPSIS
@@ -457,9 +614,10 @@ function Get-NCTelemetryPayload {
         }
     }
 
-    if ($counters.Count -gt 0)              { $payload['counters'] = $counters.ToArray() }
-    if ($statuses.Count -gt 0)              { $payload['statuses'] = $statuses }
-    if ($script:State.Events.Count -gt 0)   { $payload['events']   = $script:State.Events.ToArray() }
+    if ($counters.Count -gt 0)                  { $payload['counters'] = $counters.ToArray() }
+    if ($statuses.Count -gt 0)                  { $payload['statuses'] = $statuses }
+    if ($script:State.Events.Count -gt 0)       { $payload['events']   = $script:State.Events.ToArray() }
+    if ($script:State.DataObjects.Count -gt 0)  { $payload['data']     = $script:State.DataObjects }
 
     if ($AsJson.IsPresent) {
         return ConvertTo-Json -InputObject $payload -Depth $script:JsonDepth -Compress
@@ -563,6 +721,9 @@ Export-ModuleMember -Function @(
     'Set-NCStatus'
     'Add-NCEvent'
     'Set-NCTimestamp'
+    'Set-NCTable'
+    'Set-NCTimeSeries'
+    'Set-NCCategoryChart'
     'Get-NCTelemetryPayload'
     'Send-NCTelemetry'
 )

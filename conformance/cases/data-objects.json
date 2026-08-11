@@ -1,0 +1,68 @@
+{
+  "name": "data-objects",
+  "description": "All three data object types, keyed by id. Optional members are omitted when unset rather than sent as null, and seriesName appears only on the two chart types.",
+  "options": { "retainMinutes": 5, "removeMinutes": 1440 },
+  "snapshot": {
+    "data": [
+      {
+        "id": "processTable",
+        "type": "table",
+        "name": "Process List",
+        "columns": ["Name", "PID", "Memory"],
+        "rows": [
+          ["node.exe", 1234, 45000],
+          ["chrome.exe", 2345, 120000]
+        ]
+      },
+      {
+        "id": "throughput",
+        "type": "time-series",
+        "name": "Throughput",
+        "seriesName": "Rows/sec",
+        "timestamps": [1672531200000, 1672531260000, 1672531320000],
+        "values": [120, 138, 96],
+        "message": "last 3 minutes"
+      },
+      {
+        "id": "byOutcome",
+        "type": "category",
+        "name": "Items by Outcome",
+        "seriesName": "Items",
+        "categories": ["imported", "skipped", "failed"],
+        "values": [1204, 18, 3],
+        "status": "Warning"
+      }
+    ]
+  },
+  "expect": {
+    "retain": 5,
+    "remove": 1440,
+    "data": {
+      "processTable": {
+        "type": "table",
+        "name": "Process List",
+        "columns": ["Name", "PID", "Memory"],
+        "rows": [
+          ["node.exe", 1234, 45000],
+          ["chrome.exe", 2345, 120000]
+        ]
+      },
+      "throughput": {
+        "type": "time-series",
+        "name": "Throughput",
+        "seriesName": "Rows/sec",
+        "timestamps": [1672531200000, 1672531260000, 1672531320000],
+        "values": [120, 138, 96],
+        "message": "last 3 minutes"
+      },
+      "byOutcome": {
+        "type": "category",
+        "name": "Items by Outcome",
+        "seriesName": "Items",
+        "categories": ["imported", "skipped", "failed"],
+        "values": [1204, 18, 3],
+        "status": "Warning"
+      }
+    }
+  }
+}

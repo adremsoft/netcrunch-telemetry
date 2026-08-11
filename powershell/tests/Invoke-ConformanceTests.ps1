@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -212,12 +212,71 @@ function Invoke-CaseSnapshot {
         Add-NCEvent @arguments
     }
 
+    foreach ($dataObject in @(Get-Prop $Snapshot 'data')) {
+        if ($null -eq $dataObject) { continue }
+        Invoke-DataObject -Entry $dataObject
+    }
+
     foreach ($stamp in @(Get-Prop $Snapshot 'timestamps')) {
         if ($null -eq $stamp) { continue }
         Set-NCTimestamp -Object     ([string](Get-Prop $stamp 'object')) `
                         -Counter    ([string](Get-Prop $stamp 'counter')) `
                         -StatusKey  ([string](Get-Prop $stamp 'statusKey')) `
                         -ObservedAt (ConvertTo-DateTimeValue (Get-Prop $stamp 'observedAt'))
+    }
+}
+
+<#
+    Fixtures describe a data object as one flat record; the module splits it by
+    type. An unrecognised type falls through to the default branch and must still
+    be rejected, so the rejection fires for the reason the fixture states.
+#>
+function Invoke-DataObject {
+    param($Entry)
+
+    $arguments = @{ Id = [string](Get-Prop $Entry 'id') }
+    foreach ($name in 'name', 'seriesName', 'message', 'status') {
+        $value = Get-Prop $Entry $name
+        if ($null -ne $value) {
+            $parameter = if ($name -eq 'seriesName') { 'SeriesName' } else { (Get-Culture).TextInfo.ToTitleCase($name) }
+            $arguments[$parameter] = [string]$value
+        }
+    }
+
+    # A member the fixture omits must stay unbound, so the module raises "required"
+    # rather than the runner inventing an empty value and tripping a later check.
+    function Add-Array($Name, $Parameter) {
+        $value = Get-Prop $Entry $Name
+        if ($null -ne $value) { $arguments[$Parameter] = @($value) }
+    }
+
+    # Hoisted: Windows PowerShell 5.1 cannot parse a quoted $() subexpression
+    # inside a double-quoted string, which the throw below would otherwise need.
+    $type = [string](Get-Prop $Entry 'type')
+
+    switch ($type) {
+        'table' {
+            Add-Array 'columns' 'Columns'
+            $rows = Get-Prop $Entry 'rows'
+            # Each row has to stay an array; PowerShell would otherwise flatten them.
+            if ($null -ne $rows) { $arguments['Rows'] = @(@($rows) | ForEach-Object { , @($_) }) }
+            Set-NCTable @arguments
+        }
+        'time-series' {
+            Add-Array 'timestamps' 'Timestamps'
+            Add-Array 'values' 'Values'
+            Set-NCTimeSeries @arguments
+        }
+        'category' {
+            Add-Array 'categories' 'Categories'
+            Add-Array 'values' 'Values'
+            Set-NCCategoryChart @arguments
+        }
+        default {
+            # Not a library rejection: this module exposes one cmdlet per type, so
+            # an unrecognised type has no way to be expressed in the first place.
+            throw "unrepresentable in this API — type is not a parameter, there is no cmdlet for '$type'"
+        }
     }
 }
 
@@ -252,6 +311,7 @@ function Invoke-Rejection {
             if ($null -ne $message) { $arguments['Message'] = $message }
             Add-NCEvent @arguments
         }
+        'data' { Invoke-DataObject -Entry $input }
         default { throw "Unknown rejection kind '$kind'." }
     }
 }
@@ -263,12 +323,23 @@ function Invoke-Rejection {
 $caseFiles = @(Get-ChildItem -Path $CasePath -Filter '*.json' | Sort-Object Name)
 if ($caseFiles.Count -eq 0) { throw "No conformance cases found under $CasePath." }
 
-$passed = 0
-$failed = 0
+$passed  = 0
+$failed  = 0
+$skipped = 0
 
 foreach ($file in $caseFiles) {
     $case = Get-Content -Path $file.FullName -Raw | ConvertFrom-Json
     $name = [string](Get-Prop $case 'name')
+
+    # Aggregate cases test spec/client-model.md, which this module does not
+    # implement. Reported as skipped rather than quietly dropped — omitting them
+    # from the count would make an absent feature look verified.
+    if ($null -ne (Get-Prop $case 'operations')) {
+        $skipped++
+        Write-Host "  SKIP  $name" -ForegroundColor DarkYellow
+        Write-Host "        lifetime-bound aggregates are not implemented in PowerShell" -ForegroundColor DarkGray
+        continue
+    }
 
     $rejects = Get-Prop $case 'rejects'
     if ($null -ne $rejects) {
@@ -319,6 +390,8 @@ foreach ($file in $caseFiles) {
 }
 
 Write-Host ''
-Write-Host "$passed passed, $failed failed" -ForegroundColor $(if ($failed -eq 0) { 'Green' } else { 'Red' })
+$summary = "$passed passed, $failed failed"
+if ($skipped -gt 0) { $summary += ", $skipped skipped" }
+Write-Host $summary -ForegroundColor $(if ($failed -eq 0) { 'Green' } else { 'Red' })
 
 exit $(if ($failed -eq 0) { 0 } else { 1 })
