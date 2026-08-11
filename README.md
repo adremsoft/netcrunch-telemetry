@@ -71,6 +71,7 @@ One repository on purpose: the spec and every implementation move together, and 
 | Conformance suite | Draft — 11 cases |
 | [PowerShell](powershell/) | **Alpha** — passes conformance on 5.1 and 7 |
 | [Node.js](js/) | **Alpha** — passes conformance; includes the aggregates |
+| [Go](go/) | **Alpha** — passes conformance; includes the aggregates |
 | Python | Not started |
 | .NET | Not started |
 | Go | Not started |
