@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netcrunch-telemetry"
+version = "0.1.0a1"
+description = "Push metrics, states and events from a Python application into NetCrunch."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AdRem Software" }]
+keywords = ["netcrunch", "monitoring", "telemetry", "metrics", "observability"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/adremsoft/netcrunch-telemetry"
+Repository = "https://github.com/adremsoft/netcrunch-telemetry"
+
+[tool.setuptools.packages.find]
+where = ["src"]

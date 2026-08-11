@@ -73,7 +73,7 @@ One repository on purpose: the spec and every implementation move together, and 
 | [Node.js](js/) | **Alpha** — passes conformance; includes the aggregates |
 | [Go](go/) | **Alpha** — passes conformance; includes the aggregates |
 | [.NET](dotnet/) | **Alpha** — passes conformance; includes the aggregates |
-| Python | Not started |
+| [Python](python/) | **Alpha** — passes conformance; includes the aggregates |
 
 Lifetime-bound aggregates depend on deterministic destruction. They map cleanly to Go (`defer`), Rust (`Drop`), C# (`IDisposable`), Python (context managers) and C++ (RAII). In JavaScript they require TC39 explicit resource management (`using` / `DisposableStack`, Node 24+ or the TypeScript downlevel) and carry an ownership obligation the runtime will not enforce for you — see [js/README.md](js/README.md).
 
