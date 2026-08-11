@@ -4,11 +4,13 @@ See spec/v1.md for the wire format and spec/client-model.md for the behaviour
 above it.
 """
 
+from ._async import AsyncTelemetry
 from ._counters import CategoryCount, Counter, PartCount, SelfCount
 from ._telemetry import Telemetry
 from ._transport import TelemetryError
 
 __all__ = [
+    "AsyncTelemetry",
     "CategoryCount",
     "Counter",
     "PartCount",

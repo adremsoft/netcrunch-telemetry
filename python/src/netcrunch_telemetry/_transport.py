@@ -8,6 +8,7 @@ rejected request will not change the answer.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import urllib.error
 import urllib.request
@@ -61,6 +62,43 @@ def post(
         if attempt > max_retries:
             break
         sleep(_backoff_seconds(attempt))
+
+    assert last is not None
+    raise last
+
+
+async def post_async(
+    endpoint: str,
+    body: bytes,
+    *,
+    timeout_seconds: float,
+    max_retries: int,
+    token: Optional[str] = None,
+) -> None:
+    """The same policy, without blocking the event loop.
+
+    Only the socket work goes to a worker thread; the backoff between attempts is
+    a real ``asyncio.sleep``, so a retrying send does not hold a thread for the
+    seconds it spends waiting.
+
+    ``urllib`` is blocking and the standard library has no async HTTP client, so a
+    thread hop is unavoidable without taking a dependency. It costs one hop per
+    flush interval, not per observation.
+    """
+    last: Optional[TelemetryError] = None
+
+    for attempt in range(1, max_retries + 2):
+        failure = await asyncio.to_thread(_post_once, endpoint, body, timeout_seconds, token)
+        if failure is None:
+            return
+
+        if not _retryable(failure.status_code):
+            raise failure
+
+        last = failure
+        if attempt > max_retries:
+            break
+        await asyncio.sleep(_backoff_seconds(attempt))
 
     assert last is not None
     raise last

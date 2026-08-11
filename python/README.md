@@ -40,7 +40,56 @@ with Telemetry(url, retain_minutes=1500) as stats:
     stats.status("Nightly Backup", "OK", message=f"{count} files")
 ```
 
-See [`examples/service.py`](examples/service.py).
+See [`examples/service.py`](examples/service.py), or
+[`examples/async_service.py`](examples/async_service.py) for the asyncio form.
+
+## asyncio
+
+`AsyncTelemetry` shares its registry with `Telemetry`, so staging is identical — the same
+`counter()`, `status()`, `event()`, data objects and aggregates, because none of them does I/O. Only
+flushing differs.
+
+```python
+from netcrunch_telemetry import AsyncTelemetry
+
+async with AsyncTelemetry(url, token=token, flush_seconds=60) as stats:
+    stats.counter("HTTP", "Requests").inc()
+    stats.status("Service", "OK")
+```
+
+Two differences worth knowing:
+
+- **The flush loop is not started by the constructor.** Creating a task needs a running event loop,
+  and there may not be one where the object is built. `async with` starts it; otherwise `await
+  stats.start()` from inside the loop.
+- **Aggregates stay synchronous.** `with stats.self_count(...)`, not `async with` — closing one only
+  touches memory.
+
+### What "async" means here, precisely
+
+The standard library has no async HTTP client and `urllib` blocks, so the socket work goes to a
+worker thread via `asyncio.to_thread`. That is one thread hop per *flush interval*, not per
+observation.
+
+What is genuinely async is everything around it. The retry backoff is a real `asyncio.sleep`, so a
+retrying send does not hold a thread — or your loop — for the seconds it spends waiting. Measured on
+a single 503 followed by success, with a 50 ms heartbeat running alongside:
+
+| | Loop ticks during the 1 s backoff |
+| --- | --- |
+| `AsyncTelemetry` | 20 |
+| `Telemetry.flush()` called from the loop | 0 |
+
+If you already have `aiohttp` or `httpx` in the application, pass `send=` to route through it and
+skip the thread entirely:
+
+```python
+async def sender(endpoint, body, *, timeout_seconds, max_retries, token=None):
+    async with session.post(endpoint, data=body, headers=...) as response:
+        ...
+
+stats = AsyncTelemetry(url, send=sender)
+```
 
 ## The model
 
@@ -171,11 +220,10 @@ to pass; Python's do not, so every check has to exist and every rejection case a
 
 ## Known gaps
 
-- **No asyncio support.** `flush()` blocks and the background flusher is a thread. An async
-  application can still use it — counters are thread-safe and the thread is a daemon — but a
-  `run_in_executor` hop is needed to flush without blocking the loop. An `AsyncTelemetry` sharing the
-  same registry is the obvious next step, and given how much Python is async now, this is the largest
-  gap of the five implementations.
+- **No native async HTTP.** `AsyncTelemetry` keeps the loop responsive, but the socket work still
+  goes to a worker thread, because the standard library has no async HTTP client and taking a
+  dependency would break the zero-dependency promise the other four libraries keep. Pass `send=` to
+  use one you already have.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
 - **The receiver does not enforce the token yet.** The client half is settled
