@@ -46,7 +46,12 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
     /// <exception cref="ArgumentOutOfRangeException">Retain does not exceed the flush interval.</exception>
     public Telemetry(TelemetryOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        // Not ArgumentNullException.ThrowIfNull: that is .NET 6+, and this library
+        // also targets netstandard2.0.
+        if (options is null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
 
         if (string.IsNullOrWhiteSpace(options.Endpoint))
         {
@@ -87,11 +92,14 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
 
     private async Task LoopAsync(TimeSpan interval)
     {
-        using var timer = new PeriodicTimer(interval);
+        // Task.Delay rather than PeriodicTimer, which is .NET 6+ and would need
+        // the only #if in the library to support netstandard2.0.
         try
         {
-            while (await timer.WaitForNextTickAsync(_stopping.Token).ConfigureAwait(false))
+            while (!_stopping.IsCancellationRequested)
             {
+                await Task.Delay(interval, _stopping.Token).ConfigureAwait(false);
+
                 try
                 {
                     await FlushAsync(_stopping.Token).ConfigureAwait(false);
@@ -208,7 +216,11 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
     /// </remarks>
     public void Data(string id, DataObject dataObject)
     {
-        ArgumentNullException.ThrowIfNull(dataObject);
+        if (dataObject is null)
+        {
+            throw new ArgumentNullException(nameof(dataObject));
+        }
+
         Validate.DataObject(id, dataObject.Type, dataObject.Members);
 
         var encoded = new Dictionary<string, object?>(StringComparer.Ordinal) { ["type"] = dataObject.Type };
@@ -247,7 +259,11 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
     /// <summary>Stages a table.</summary>
     public void Table(string id, TableData table)
     {
-        ArgumentNullException.ThrowIfNull(table);
+        if (table is null)
+        {
+            throw new ArgumentNullException(nameof(table));
+        }
+
         Data(id, new DataObject
         {
             Type = "table",
@@ -265,7 +281,11 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
     /// <summary>Stages a time chart. Timestamps are epoch milliseconds.</summary>
     public void TimeSeries(string id, TimeSeriesData series)
     {
-        ArgumentNullException.ThrowIfNull(series);
+        if (series is null)
+        {
+            throw new ArgumentNullException(nameof(series));
+        }
+
         Data(id, new DataObject
         {
             Type = "time-series",
@@ -287,7 +307,11 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
     /// </summary>
     public void CategoryChart(string id, CategoryChartData chart)
     {
-        ArgumentNullException.ThrowIfNull(chart);
+        if (chart is null)
+        {
+            throw new ArgumentNullException(nameof(chart));
+        }
+
         Data(id, new DataObject
         {
             Type = "category",
@@ -535,7 +559,8 @@ public sealed class Telemetry : IDisposable, IAsyncDisposable
             return;
         }
 
-        await _stopping.CancelAsync().ConfigureAwait(false);
+        // Cancel rather than CancelAsync, which is .NET 8+.
+        _stopping.Cancel();
         try
         {
             await _loop.ConfigureAwait(false);

@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      net8.0 is the target for anything modern and carries no dependencies at all.
+      netstandard2.0 exists for .NET Framework 4.6.1+, which is still a large part
+      of the Windows estate NetCrunch monitors — it costs two package references,
+      listed below, which is the whole reason it is a separate target rather than
+      the only one.
+    -->
+    <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,6 +16,13 @@
     <AssemblyName>NetCrunch.Telemetry</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <!-- In-box from .NET Core 3.0 onwards; a package only for the old targets. -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <!-- IAsyncDisposable and ValueTask, both in-box from .NET Core 3.0. -->
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+  </ItemGroup>
 
   <PropertyGroup>
     <PackageId>NetCrunch.Telemetry</PackageId>

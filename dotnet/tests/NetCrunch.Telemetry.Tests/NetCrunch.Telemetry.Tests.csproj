@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      net48 runs the same suite against the netstandard2.0 build, so the old
+      target is exercised rather than merely compiled. Reference assemblies come
+      from a package, so this works without Visual Studio installed.
+    -->
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -14,6 +19,16 @@
     -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <!--
+      System.Net.Http is a facade on .NET Framework and is not referenced by
+      default. Any Framework consumer of this library needs the same line; see
+      the README.
+    -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />

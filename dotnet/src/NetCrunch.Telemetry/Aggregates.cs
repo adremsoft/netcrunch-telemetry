@@ -75,7 +75,12 @@ public sealed class PartCount : IDisposable
 
         lock (_gate)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            // Not ObjectDisposedException.ThrowIf: that is .NET 7+, and this file
+            // also compiles for netstandard2.0.
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
 
             if (value == _contribution)
             {
@@ -150,7 +155,12 @@ public sealed class CategoryCount : IDisposable
 
         lock (_gate)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            // Not ObjectDisposedException.ThrowIf: that is .NET 7+, and this file
+            // also compiles for netstandard2.0.
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
 
             if (instance == _current)
             {

@@ -11,7 +11,48 @@ dependencies beyond the base class library.
 dotnet add package NetCrunch.Telemetry
 ```
 
-Targets `net8.0`.
+| Target | Dependencies |
+| --- | --- |
+| `net8.0` | **none** |
+| `netstandard2.0` | `System.Text.Json`, `Microsoft.Bcl.AsyncInterfaces` |
+
+Modern .NET carries no dependencies at all. `netstandard2.0` exists for .NET Framework 4.6.1+, and
+the two packages are what that costs — both are in-box from .NET Core 3.0 onwards, so they are the
+price of the old target rather than of the library.
+
+The source is single-version: no `#if` outside `Polyfills.cs`, which declares the four attributes the
+compiler expects for `init` and `required` and which predate `netstandard2.0`. Everything else uses
+APIs both targets have, so `PeriodicTimer`, `ArgumentNullException.ThrowIfNull`,
+`ObjectDisposedException.ThrowIf` and `CancellationTokenSource.CancelAsync` are all avoided.
+
+### .NET Framework
+
+Two steps Framework projects need, neither of them specific to this package but both easy to lose an
+afternoon to:
+
+```xml
+<Reference Include="System.Net.Http" />
+```
+
+```csharp
+using System.Net.Http;   // the SDK omits this from implicit usings on Framework
+```
+
+`System.Net.Http` is a facade assembly there. It is not referenced by default, and the SDK
+deliberately leaves it out of the implicit usings *because* it is a facade — so you need both lines,
+and the compiler error for the second one names a type rather than the assembly.
+
+**TLS 1.2 on 4.6.x.** Older Framework versions default `ServicePointManager.SecurityProtocol` to
+protocols a modern endpoint will refuse; 4.7+ follows the OS. This library does not raise it for you,
+because changing that is process-wide and a telemetry package has no business doing it behind your
+back. Set it yourself if you are on 4.6.x:
+
+```csharp
+ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+```
+
+(The PowerShell module *does* raise it, because there it is a script's own process and raising it is
+the whole point of the module working at all. The asymmetry is deliberate.)
 
 ## Use
 
@@ -149,6 +190,10 @@ Runs the shared fixtures in [`../conformance/cases`](../conformance/cases) plus 
 aggregates and the transport. HTTP behaviour is exercised through a stub `HttpMessageHandler` rather
 than a listening socket.
 
+The suite is multi-targeted: it runs once on `net8.0` and again on **`net48`, against the
+`netstandard2.0` build**. That second run is the point — it means the old target is executed rather
+than merely compiled, and it is what caught both Framework issues documented above.
+
 Two rejection cases are reported in the test output as **UNREPRESENTABLE**: a counter value that is a
 string, and a status value that is a number. Both are impossible here — the signatures take `double`
 and `string` — so there is nothing to reject. The Go suite marks the equivalent cases as skipped;
@@ -162,8 +207,6 @@ whatever major runtime is installed — a machine may have 6.0 and 9.0 but not 8
 
 ## Known gaps
 
-- **`net8.0` only.** No `netstandard2.0` target, so .NET Framework 4.8 applications cannot use this
-  yet. That would mean taking a `System.Text.Json` package reference, which is the trade to weigh.
 - **Concurrent flushes serialise** rather than sharing one request, as the Node implementation does.
   Each still sends absolute state, so the result is correct either way.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate

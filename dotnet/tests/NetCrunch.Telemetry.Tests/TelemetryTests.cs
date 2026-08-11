@@ -1,4 +1,9 @@
 using System.Net;
+
+// Explicit because the SDK leaves System.Net.Http out of the implicit usings on
+// .NET Framework, where it is a facade assembly. Redundant on net8.0, required on
+// net48 — the same pair of steps a Framework consumer needs.
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Xunit;
@@ -45,7 +50,8 @@ public sealed class TelemetryTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            // No CancellationToken overload before .NET 5, and this suite also runs on net48.
+            var body = await request.Content!.ReadAsStringAsync();
             int count;
             lock (_gate)
             {

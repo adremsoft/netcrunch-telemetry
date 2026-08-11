@@ -57,12 +57,17 @@ internal static class Validate
 
     internal static void StatusKey(string? key)
     {
-        if (string.IsNullOrWhiteSpace(key))
+        // Spelled out rather than string.IsNullOrWhiteSpace, which is annotated
+        // with [NotNullWhen(false)] only on modern targets. On netstandard2.0 the
+        // compiler would not learn that key is non-null here, and the dereference
+        // below would warn.
+        if (key is null || key.Trim().Length == 0)
         {
             throw new ArgumentException("Status key is required and must not be empty.", nameof(key));
         }
 
-        if (key.StartsWith('@'))
+        // The char overload is .NET Core only; this file also targets netstandard2.0.
+        if (key.StartsWith("@", StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 $"Status key \"{key}\" is reserved — NetCrunch uses the \"@\" prefix internally.",
