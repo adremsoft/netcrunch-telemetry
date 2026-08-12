@@ -14,9 +14,14 @@ cannot be polled, but it can report.
 
 ## Install
 
+**Not published to the PowerShell Gallery yet.** Import the module from a clone:
+
 ```powershell
 Import-Module .\NetCrunch.Telemetry\NetCrunch.Telemetry.psd1
 ```
+
+The path is relative to this folder. Once the module is published this becomes
+`Install-Module NetCrunch.Telemetry`.
 
 Requires Windows PowerShell 5.1 or PowerShell 7+. No dependencies.
 

@@ -11,6 +11,10 @@ library only, no dependencies.
 go get github.com/adremsoft/netcrunch-telemetry/go
 ```
 
+This is the one language that needs no workaround: the module path matches the repository, so `go
+get` resolves it directly. There is no tagged release yet, so it pulls a pseudo-version of the
+latest commit on `main` - pin it in `go.mod` if you need a fixed one.
+
 Go 1.21+.
 
 ## Use

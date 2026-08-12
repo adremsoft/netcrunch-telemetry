@@ -7,9 +7,16 @@ dependencies beyond the base class library.
 
 ## Install
 
+**Not published to NuGet yet.** Clone the repository and reference the project directly:
+
 ```bash
-dotnet add package NetCrunch.Telemetry
+git clone https://github.com/adremsoft/netcrunch-telemetry.git
+dotnet add reference netcrunch-telemetry/dotnet/src/NetCrunch.Telemetry/NetCrunch.Telemetry.csproj
 ```
+
+Once the package is published this becomes `dotnet add package NetCrunch.Telemetry`. A project
+reference resolves the target framework the same way the package would, so the table below applies
+either way.
 
 | Target | Dependencies |
 | --- | --- |

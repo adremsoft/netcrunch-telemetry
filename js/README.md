@@ -5,9 +5,16 @@ events — plus the lifetime-bound aggregates. Passes the shared conformance sui
 
 ## Install
 
+**Not published to npm yet.** Install from a clone:
+
 ```bash
-npm install @netcrunch/telemetry
+git clone https://github.com/adremsoft/netcrunch-telemetry.git
+npm install ./netcrunch-telemetry/js
 ```
+
+A local path is the only route in for now: npm cannot install from a subdirectory of a git
+repository, and there is no package at the repository root. Once `@netcrunch/telemetry` is published
+this becomes `npm install @netcrunch/telemetry`.
 
 Node 20+. ESM only (see [known gaps](#known-gaps)). Types are bundled.
 

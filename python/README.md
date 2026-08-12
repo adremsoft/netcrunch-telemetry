@@ -7,9 +7,14 @@ library only, no dependencies.
 
 ## Install
 
+**Not published to PyPI yet.** pip can install straight from the repository, which carries the
+package in a subdirectory:
+
 ```bash
-pip install netcrunch-telemetry
+pip install "git+https://github.com/adremsoft/netcrunch-telemetry#subdirectory=python"
 ```
+
+Once `netcrunch-telemetry` is published this becomes `pip install netcrunch-telemetry`.
 
 Python 3.9+.
 
