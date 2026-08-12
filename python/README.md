@@ -204,10 +204,12 @@ stats = Telemetry(
 )
 ```
 
-**The NetCrunch receiver does not verify the token yet.** Today the endpoint URL is itself the whole
-credential: anyone who can reach the web server and knows the sensor name and node id can write to
-that sensor. Sending a token now costs nothing and makes the client forward-compatible with the
-receiver that enforces it. Until then treat **both** URL and token as secrets — neither reaches a log
+**The receiver verifies this header.** A token is configured per sensor. With one set, a
+request that does not carry it is rejected with `401`. With the field left empty the sensor
+accepts unauthenticated requests, and the endpoint URL is then the whole credential: anyone
+who can reach the web server and knows the sensor name and node id can write to that sensor.
+
+Because the empty case is supported and common, treat **both** URL and token as secrets — neither reaches a log
 or an exception from this library. See [`spec/v1.md`](../spec/v1.md) §1.1.
 
 ## Tests
@@ -231,7 +233,4 @@ to pass; Python's do not, so every check has to exist and every rejection case a
   use one you already have.
 - **No rate helper.** NetCrunch does not derive per-second values for telemetry counters, so a rate
   must be computed and sent as its own counter.
-- **The receiver does not enforce the token yet.** The client half is settled
-  ([`spec/v1.md`](../spec/v1.md) §1.1); NetCrunch must issue tokens and verify the header before v1
-  can be frozen. No client change is expected when that lands.
 - **Not published to PyPI** while the package is alpha.

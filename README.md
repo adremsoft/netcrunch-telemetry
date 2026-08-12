@@ -2,7 +2,7 @@
 
 Lightweight instrumentation libraries that push metrics, states and events from your application into NetCrunch.
 
-> **Status: early.** The wire format is specified and implemented server-side in NetCrunch 16. The PowerShell module is alpha and passes the conformance suite; the other languages are not started, and the interfaces shown for them below are intended design rather than shipping API.
+> **Status: early.** The wire format is implemented server-side in NetCrunch 16, and all five client libraries are alpha and pass the shared conformance suite. Interfaces may still change between versions, and nothing is published to a package registry yet.
 
 ## Why not just OpenTelemetry?
 
