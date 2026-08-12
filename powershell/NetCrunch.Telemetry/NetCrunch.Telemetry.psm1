@@ -147,8 +147,9 @@ function Connect-NCTelemetry {
 
     .PARAMETER Token
         Bearer token from the Telemetry sensor, sent as an Authorization header.
-        Optional only because the receiver does not yet require one; see
-        spec/v1.md section 1.1.
+        Optional because a sensor need not have one configured, and because
+        servers before NetCrunch 16.0 do not check it; see spec/v1.md
+        section 1.1.
 
     .EXAMPLE
         Connect-NCTelemetry -Endpoint $env:NC_TELEMETRY_URL -RetainMinutes 90

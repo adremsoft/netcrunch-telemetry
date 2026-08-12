@@ -11,7 +11,8 @@ public sealed class TelemetryOptions
 
     /// <summary>
     /// The bearer token from the Telemetry sensor, sent as an <c>Authorization</c> header. Optional
-    /// only because the receiver does not yet require one; see spec/v1.md section 1.1. Never logged.
+    /// because a sensor need not have one configured, and because servers before NetCrunch 16.0 do
+    /// not check it; see spec/v1.md section 1.1. Never logged.
     /// </summary>
     public string? Token { get; init; }
 

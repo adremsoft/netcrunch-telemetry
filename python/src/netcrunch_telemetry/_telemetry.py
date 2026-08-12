@@ -36,8 +36,9 @@ class Telemetry(Registry):
     :param endpoint: URL from the Telemetry sensor form. Treat it as a secret;
         this library never writes it to an exception or a log.
     :param token: Bearer token from the Telemetry sensor, sent as an
-        ``Authorization`` header. Optional only because the receiver does not yet
-        require one; see spec/v1.md section 1.1.
+        ``Authorization`` header. Optional because a sensor need not have one
+        configured, and because servers before NetCrunch 16.0 do not check it;
+        see spec/v1.md section 1.1.
     :param flush_seconds: Starts a background flush thread when above zero. Zero —
         the default — flushes only when asked.
     :param retain_minutes: Must exceed the flush interval, or values expire

@@ -29,8 +29,9 @@ type Options struct {
 	Endpoint string
 
 	// Token is the bearer token from the Telemetry sensor, sent as an
-	// Authorization header. Optional only because the receiver does not yet
-	// require one; see spec/v1.md section 1.1.
+	// Authorization header. Optional because a sensor need not have one
+	// configured, and because servers before NetCrunch 16.0 do not check it;
+	// see spec/v1.md section 1.1.
 	Token string
 
 	// FlushInterval starts a background flush loop when greater than zero.
